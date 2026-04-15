@@ -20,7 +20,7 @@ class Orderlist extends StatelessWidget {
               Text(
                 "Order History",
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontStyle: FontStyle.italic,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF1D212C),

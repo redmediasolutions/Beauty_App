@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glowfit/pages/Home/home.dart';
 
 import 'package:go_router/go_router.dart'; // Or your preferred navigation
 import 'package:google_fonts/google_fonts.dart';
@@ -19,8 +20,10 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
     Future.delayed(const Duration(seconds: 4), () {
       if (mounted) {
         // Use pushReplacement so the user can't "Go Back" to the success screen
-        context.pushReplacement('/home', extra: 0);
-      }
+    
+       Navigator.push(context,MaterialPageRoute(builder: (context)=>Homepage(categoryId: '19',)));
+          
+           }
     });
   }
 

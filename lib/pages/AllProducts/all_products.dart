@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glowfit/components/primarheader.dart';
@@ -16,7 +15,7 @@ class AllProducts extends StatefulWidget {
 }
 
 class _AllProductsState extends State<AllProducts> {
-  final ScrollController _scrollController=ScrollController();
+  final ScrollController _scrollController = ScrollController();
   final List<Productsmodel> _products = [];
   int _currentPage = 1;
   bool _isLoading = false;
@@ -53,15 +52,17 @@ class _AllProductsState extends State<AllProducts> {
     super.initState();
     _productsFuture = APIService.fetchProducts();
     _loadProducts(); // Initial load
-    
+
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
         _loadProducts();
       }
     });
   }
-//====================Load Products==========================
-Future<void> _loadProducts() async {
+
+  //====================Load Products==========================
+  Future<void> _loadProducts() async {
     if (_isLoading || !_hasMore) return;
 
     setState(() => _isLoading = true);
@@ -96,7 +97,6 @@ Future<void> _loadProducts() async {
   @override
   Widget build(BuildContext context) {
     return PrimaryHeader(
-      
       body: SafeArea(
         child: SingleChildScrollView(
           controller: _scrollController,
@@ -112,12 +112,13 @@ Future<void> _loadProducts() async {
                   children: [
                     Text(
                           'All Products',
-                          style:Theme.of(context).textTheme.bodySmall?.copyWith(
-                           fontSize: 40,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -1.5,
-                            color: Colors.black,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -1.5,
+                                color: Colors.black,
+                              ),
                         )
                         .animate()
                         .fadeIn(duration: 600.ms)
@@ -132,155 +133,92 @@ Future<void> _loadProducts() async {
                       ),
                     ).animate().fadeIn(delay: 200.ms),
 
-                      //category list
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 15),
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 35,
-                            backgroundImage: NetworkImage(
-                              categories[index]['image']!,
+                    //category list
+                    SizedBox(
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: categories.length,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 15),
+                            child: Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 35,
+                                  backgroundImage: NetworkImage(
+                                    categories[index]['image']!,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  categories[index]['name']!,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            categories[index]['name']!,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ),
 
                     if (_products.isEmpty && _isLoading)
-                const Center(child: CircularProgressIndicator())
-              else if (_products.isEmpty)
-                const Center(child: Text("No products found"))
-              else
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(), // Keep this as is
-                  padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 30),
-                  itemCount: _products.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                      mainAxisSpacing: 20,
-                      crossAxisSpacing: 15,
-                      childAspectRatio: 0.7,
-                  ),
-                  itemBuilder: (context, index) {
-                    final p = _products[index];
-                    return GestureDetector(
-                      onTap: (){
-                       context.push('/productview', extra: p);
-                      },
-                      child: ProductsList(
-                        id: p.id.toString(),
-                        name: p.name,
-                        imageUrl: p.image,
-                        regularPrice: p.salePrice,
-                        product: p,
-                        onAddToCart: () => print("Added ${p.name}"),
+                      const Center(child: CircularProgressIndicator())
+                    else if (_products.isEmpty)
+                      const Center(child: Text("No products found"))
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics:
+                            const NeverScrollableScrollPhysics(), // Keep this as is
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 25,
+                          vertical: 30,
+                        ),
+                        itemCount: _products.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 20,
+                              crossAxisSpacing: 15,
+                              childAspectRatio: 0.7,
+                            ),
+                        itemBuilder: (context, index) {
+                          final p = _products[index];
+                          return GestureDetector(
+                            onTap: () {
+                              context.push('/productview', extra: p);
+                            },
+                            child: ProductsList(
+                              id: p.id.toString(),
+                              name: p.name,
+                              imageUrl: p.image,
+                              regularPrice: p.salePrice,
+                              product: p,
+                              onAddToCart: () => print("Added ${p.name}"),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
 
-              // Loading indicator at the bottom
-              if (_isLoading && _products.isNotEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 20),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
+                    // Loading indicator at the bottom
+                    if (_isLoading && _products.isNotEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
 
-              const SizedBox(height: 100),
+                    const SizedBox(height: 100),
                   ],
                 ),
               ),
 
               const SizedBox(height: 20),
-
-            
-
-              // --- Grid Section ---
-              // GestureDetector(
-              //   onTap: () {
-              //     context.go('/productview');
-              //   },
-              //   child: FutureBuilder<List<Productsmodel>>(
-                  
-              //     future: _productsFuture,
-              //     builder: (context, snapshot) {
-              //       if (snapshot.connectionState == ConnectionState.waiting) {
-              //         return const Center(
-              //           child: Padding(
-              //             padding: EdgeInsets.symmetric(vertical: 50),
-              //             child: CircularProgressIndicator(),
-              //           ),
-              //         );
-              //       }
-
-              //       if (snapshot.hasError) {
-              //         return const Center(
-              //           child: Text("Error loading products"),
-              //         );
-              //       }
-
-              //       if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              //         return const Center(child: Text("No products found"));
-              //       }
-
-              //       final products = snapshot.data!;
-
-              //       return GridView.builder(
-              //         controller: _scrollController,
-              //         shrinkWrap: true,
-              //         physics: const NeverScrollableScrollPhysics(),
-              //         padding: const EdgeInsets.symmetric(
-              //           horizontal: 25,
-              //           vertical: 30,
-              //         ),
-              //         itemCount: products.length,
-              //         gridDelegate:
-              //             const SliverGridDelegateWithFixedCrossAxisCount(
-              //               crossAxisCount: 2,
-              //               mainAxisSpacing: 30,
-              //               crossAxisSpacing: 20,
-              //               childAspectRatio: 0.65,
-              //             ),
-              //         itemBuilder: (context, index) {
-              //           final p = products[index];
-              //           return GestureDetector(
-              //             onTap: () => context.push('/productview', extra: p),
-              //             child: ProductsList(
-              //               id: p.id.toString(),
-              //               name: p.name,
-              //               imageUrl: p.image,
-              //               regularPrice: p.salePrice,
-              //               product: p,
-              //               onAddToCart: () => print("Added ${p.name}"),
-              //             ),
-              //           );
-              //         },
-              //       );
-              //     },
-              //   ),
-              // ),
-
               const SizedBox(height: 100), // Bottom padding for nav bar
             ],
           ),
