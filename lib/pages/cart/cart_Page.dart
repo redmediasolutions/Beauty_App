@@ -234,13 +234,7 @@ void _calculateTotals(List docs) {
               ),
             ),
 
-            // --- FLOATING CHECKOUT ---
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 20,
-              child: _buildCheckoutButton(),
-            ),
+          
           ],
         ),
       ),
