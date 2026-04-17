@@ -147,7 +147,7 @@ class _ProductsViewState extends State<ProductsView> {
                   .doc(p.id.toString()) // Use p.id.toString() here
                   .snapshots(),
               builder: (context, snapshot) {
-                int currentQty = 0;
+                int currentQty = 1;
                 if (snapshot.hasData && snapshot.data!.exists) {
                   var data = snapshot.data!.data() as Map<String, dynamic>;
                   currentQty = data['quantity'] ?? 0;
@@ -259,10 +259,11 @@ class _ProductsViewState extends State<ProductsView> {
             // --- SECTION 1: HERO (Large spacing, occupies most of screen) ---
             _buildHeroSection(context, p),
             const SizedBox(height: 10),
+             scrollTriggered(_description(context, p), 'desc'),
+            const SizedBox(height: 15),
             _productdetails(context, p),
             const SizedBox(height: 10),
-            scrollTriggered(_description(context, p), 'desc'),
-            const SizedBox(height: 15),
+           
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               child: Row(
@@ -270,20 +271,19 @@ class _ProductsViewState extends State<ProductsView> {
                   Expanded(
                     child: _keywords(
                       context,
-                      Icons.science_outlined,
+                      Icons.auto_awesome,
                       "Composition",
+                      "Instant Pearl like glow"
                     ),
                   ),
-                  const SizedBox(width: 10), // Gap between frames
-                  Expanded(
-                    child: _keywords(context, Icons.opacity, "Hydrating"),
-                  ),
+                 
                   const SizedBox(width: 10),
                   Expanded(
                     child: _keywords(
                       context,
-                      Icons.verified_outlined,
-                      "Certified",
+                      Icons.spa,
+                      "Hydration",
+                      "24 hours moisture lock technology"
                     ),
                   ),
                 ],
@@ -292,118 +292,113 @@ class _ProductsViewState extends State<ProductsView> {
 
             const SizedBox(height: 15),
             _buildProductDetails(p),
-            const SizedBox(height: 40),
+            const SizedBox(height: 5),
 
             scrollTriggered(_buildImageSection(context, p), 'Imagesection'),
 
-            const SizedBox(height: 100),
+            const SizedBox(height: 5),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeroSection(BuildContext context, Productsmodel p) {
-    // Combine main image and gallery images into one list
-    final List<String> allImages = [
-      p.image ?? '',
-      ...p.galleryImages,
-    ].where((img) => img.isNotEmpty).toList();
+ Widget _buildHeroSection(BuildContext context, Productsmodel p) {
+  // 1. Combine images and filter out empty strings
+  final List<String> allImages = [
+    p.image ?? '',
+    ...p.galleryImages,
+  ].where((img) => img.isNotEmpty).toList();
 
-    return Stack(
-      children: [
-        //=========================== IMAGE CAROUSEL SECTION =========================
-        CarouselSlider(
-          carouselController: _carouselController,
-          options: CarouselOptions(
-            height: 700,
-            viewportFraction: 1.0,
-            enlargeCenterPage: false,
-            enableInfiniteScroll: allImages.length > 1,
-            autoPlay: false,
-            onPageChanged: (index, reason) {
-              setState(() {
-                selectedImage = allImages[index];
-              });
-            },
-          ),
-          items: allImages.map((imageUrl) {
-            return Container(
-              width: MediaQuery.of(context).size.width,
-              color: const Color(0xFFF5F5F7),
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.contain,
-                height: 100,
-                width: 200,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image, size: 50),
-              ).animate().fadeIn(duration: 800.ms),
-            );
-          }).toList(),
-        ),
-
-        if (allImages.length > 1)
-          Positioned(
-            top: 550,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: allImages.asMap().entries.map((entry) {
-                return Container(
-                  width: 8.0,
-                  height: 8.0,
-                  margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selectedImage == entry.value
-                        ? Colors.black
-                        : Colors.black.withOpacity(0.2),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-        // --- Product Info Overlay ---
-        Positioned(
-          bottom: 30,
-          left: 25,
-          right: 25,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                p.categories.toUpperCase(),
-                style: GoogleFonts.inter(
-                  letterSpacing: 3,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black45,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                p.name,
-                style: GoogleFonts.tenorSans(
-                  fontSize: 26,
-                  height: 1.1,
-                  color: Colors.black,
-                ),
-              ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1, end: 0),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ],
-    );
+  // 2. Fallback: Show dummy image if no images are found
+  if (allImages.isEmpty) {
+    allImages.add('https://your-domain.com/assets/dummy_image.png');
   }
 
+  return Stack(
+    children: [
+      // =========================== IMAGE CAROUSEL SECTION =========================
+      CarouselSlider(
+        // carouselController: _carouselController,
+        options: CarouselOptions(
+          height: 450, // Standard height for hero section
+          // viewportFraction: 0.9, // Shows a peek of the next image
+          enlargeCenterPage: true, // Adds a nice scaling effect
+          enableInfiniteScroll: allImages.length > 1,
+          autoPlay: false,
+          onPageChanged: (index, reason) {
+            setState(() {
+              selectedImage = allImages[index];
+            });
+          },
+        ),
+        items: allImages.map((imageUrl) {
+          return Container(
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.circular(24), // <--- THE CURVE
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24), // Matches the container
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+              ),
+            ).animate().fadeIn(duration: 800.ms),
+          );
+        }).toList(),
+      ),
+
+      // =========================== DOT INDICATOR =========================
+     
+
+      // =========================== PRODUCT INFO OVERLAY =========================
+      Positioned(
+        bottom: 10,
+        left: 25,
+        right: 25,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              p.categories.toUpperCase(),
+              style: GoogleFonts.inter(
+                letterSpacing: 3,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black45,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              p.name,
+              style: GoogleFonts.tenorSans(
+                fontSize: 26,
+                height: 1.1,
+                color: Colors.black,
+              ),
+            ).animate().fadeIn(delay: 200.ms).slideX(begin: -0.1, end: 0),
+          ],
+        ),
+      ),
+    ],
+  );
+}
   //=======================KeyWords==========================
-  Widget _keywords(BuildContext context, IconData symbol, String label) {
+  Widget _keywords(BuildContext context, IconData symbol, String label, String desc) {
     return Container(
-      height: 90,
+      height: 150,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(15),
@@ -418,15 +413,26 @@ class _ProductsViewState extends State<ProductsView> {
           Text(
             label,
             textAlign: TextAlign.center,
-            maxLines: 1, // Prevents text from pushing the frame height
-            overflow:
-                TextOverflow.ellipsis, // Adds '...' if the word is too long
+            //maxLines: 5, 
+            style: GoogleFonts.inter(
+              fontSize: 11, 
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF8A206E),
+            ),
+            
+          ),
+          SizedBox(height: 8,),
+           Text(
+            desc,
+            textAlign: TextAlign.center,
+            
+          
             style: GoogleFonts.inter(
               fontSize: 11, // Slightly smaller to ensure fit on small screens
               fontWeight: FontWeight.w500,
               color: const Color(0xFF8A206E),
             ),
-          ),
+           )
         ],
       ),
     );
@@ -499,15 +505,7 @@ class _ProductsViewState extends State<ProductsView> {
                   color: Colors.black,
                 ),
               ),
-              Text(
-                "₹ ${p.regularPrice}",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.grey,
-                  fontSize: 15,
-                  decoration: TextDecoration.lineThrough,
-                  decorationColor: Colors.grey,
-                ),
-              ),
+           
             ],
           ),
           const SizedBox(height: 20),
@@ -583,7 +581,6 @@ class _ProductsViewState extends State<ProductsView> {
 
   //========================== DESCRIPTION SECTION =========================
   Widget _description(BuildContext context, Productsmodel p) {
-    // 1. Create a Notifier to track if text is expanded
     final ValueNotifier<bool> isExpanded = ValueNotifier(false);
 
     final String cleanDescription = p.description.replaceAll(
@@ -625,7 +622,7 @@ class _ProductsViewState extends State<ProductsView> {
                             : TextOverflow.ellipsis,
                         style: Theme.of(
                           context,
-                        ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+                        ).textTheme.bodyLarge?.copyWith(color: Colors.black),
                       ),
                     ],
                   ),
@@ -665,7 +662,7 @@ class _ProductsViewState extends State<ProductsView> {
               color: Colors.transparent,
               child: Image.network(
                 p.image ?? 'https://via.placeholder.com/380',
-                cacheWidth: 400,
+                cacheWidth: 300,
                 fit: BoxFit.contain,
                 loadingBuilder: (context, child, loadingProgress) {
                   if (loadingProgress == null) return child;

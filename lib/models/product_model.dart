@@ -87,17 +87,22 @@ class Productsmodel {
 
     // 4. IMAGE HANDLING
     List<String> galleryImages = [];
-    if (json['images'] is List) {
-      galleryImages = (json['images'] as List)
-          .map(
-            (img) =>
-                img is Map ? (img['src']?.toString() ?? '') : img.toString(),
-          )
-          .where((url) => url.isNotEmpty)
-          .toList();
-    } else if (json['image'] != null) {
-      galleryImages.add(json['image'].toString());
-    }
+
+if (json['images'] is List) {
+  galleryImages = (json['images'] as List)
+      .map(
+        (img) => img is Map ? (img['src']?.toString() ?? '') : img.toString(),
+      )
+      .where((url) => url.isNotEmpty)
+      .toList();
+} else if (json['image'] != null && json['image'].toString().isNotEmpty) {
+  galleryImages.add(json['image'].toString());
+}
+
+// --- Fallback Logic ---
+if (galleryImages.isEmpty) {
+  galleryImages.add('https://img.freepik.com/free-photo/cosmetic-male-beauty-products-with-display_23-2150435210.jpg?semt=ais_hybrid&w=740&q=80');
+}
 
     // 5. CATEGORY HANDLING
     final List categoriesList = json['categories'] is List
