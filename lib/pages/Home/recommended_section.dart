@@ -74,7 +74,9 @@ class RecommendedSection extends StatelessWidget {
               return Column(
                 children: [
                   GestureDetector(
-                    onTap: () => context.push('/productview', extra: primary),
+                    onTap: () {
+                      context.push('/product/${primary.id}');
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -140,13 +142,12 @@ class RecommendedSection extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           OutlinedButton(
-                            onPressed: () =>
-                                context.push('/productview', extra: primary),
+                            onPressed: () {
+                              context.push('/product/${primary.id}');
+                            },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF8E5E6A),
-                              side: const BorderSide(
-                                color: Color(0xFFE5C9D3),
-                              ),
+                              side: const BorderSide(color: Color(0xFFE5C9D3)),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 18,
                                 vertical: 12,
@@ -232,7 +233,9 @@ class _CompactRecommendationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/productview', extra: product),
+       onTap: () {
+  context.push('/product/${product.id}');
+},
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

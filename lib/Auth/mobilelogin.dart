@@ -62,168 +62,221 @@ class _MobileLoginState extends State<MobileLogin> {
 
   //===============================OTP SENDING LOGIC - FIXED FOR iOS ===============================
   Future<void> _sendOtp() async {
+  if (!mounted) return;
+
+  final phone = _phoneController.text.trim();
+
+  if (phone.length < 10) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Enter a valid mobile number")),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  final String fullPhoneNumber = "+91$phone";
+
+  try {
+    await _auth.verifyPhoneNumber(
+      phoneNumber: fullPhoneNumber,
+
+      /// 🔥 AUTO VERIFICATION (ANDROID)
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        try {
+          final userCredential =
+              await _auth.signInWithCredential(credential);
+
+          final user = userCredential.user;
+
+          if (user != null) {
+            await _saveUserToFirestore(user);
+          }
+
+          // 🚫 DO NOT NAVIGATE HERE
+          // GoRouter will handle redirect
+
+        } catch (e) {
+          debugPrint("Auto-verification error: $e");
+        }
+      },
+
+      /// ❌ FAILED
+      verificationFailed: (FirebaseAuthException e) {
+        if (!mounted) return;
+
+        String message = e.message ?? "Verification failed";
+
+        if (e.code == 'invalid-phone-number') {
+          message = "Invalid phone number";
+        }
+
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+
+        setState(() => _isLoading = false);
+      },
+
+      /// 📩 OTP SENT
+      codeSent: (String verificationId, int? resendToken) {
+        if (!mounted) return;
+
+        setState(() {
+          _verificationId = verificationId;
+          _isOtpSent = true;
+          _isLoading = false;
+        });
+      },
+
+      /// ⏳ AUTO TIMEOUT
+      codeAutoRetrievalTimeout: (String verificationId) {
+        _verificationId = verificationId;
+      },
+
+      timeout: const Duration(seconds: 120),
+    );
+  } catch (e) {
+    debugPrint("Error sending OTP: $e");
+
     if (!mounted) return;
 
-    setState(() => _isLoading = true);
-    final String fullPhoneNumber = "+91${_phoneController.text.trim()}";
+    setState(() => _isLoading = false);
 
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: fullPhoneNumber,
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          if (!mounted) return;
-
-          try {
-            UserCredential userCredential = await _auth.signInWithCredential(
-              credential,
-            );
-
-            if (!mounted) return;
-
-            if (userCredential.user != null) {
-              await _saveUserToFirestore(userCredential.user!);
-            }
-
-            if (!mounted) return;
-            _navigateToHomeIfMounted();
-          } catch (e) {
-            debugPrint("Auto-verification error: $e");
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Verification Failed: ${e.message}")),
-            );
-            setState(() => _isLoading = false);
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          if (mounted) {
-            setState(() {
-              _verificationId = verificationId;
-              _isOtpSent = true;
-              _isLoading = false;
-            });
-          }
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          _verificationId = verificationId;
-        },
-        timeout: const Duration(seconds: 120),
-      );
-    } catch (e) {
-      debugPrint("Error sending OTP: $e");
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to send OTP. Try again.")),
-        );
-      }
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to send OTP. Try again.")),
+    );
   }
+}
 
   //===============================OTP VERIFICATION LOGIC - FIXED FOR iOS ===============================
   Future<void> _verifyOtp() async {
+  if (!mounted) return;
+
+  final otp = _otpController.text.trim();
+
+  if (otp.length != 6) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Enter a valid 6-digit OTP")),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final credential = PhoneAuthProvider.credential(
+      verificationId: _verificationId,
+      smsCode: otp,
+    );
+
+    final userCredential =
+        await _auth.signInWithCredential(credential);
+
+    final user = userCredential.user;
+
+    if (user != null) {
+      await _saveUserToFirestore(user);
+    }
+
+    // ✅ IMPORTANT:
+    // DO NOT navigate here
+    // GoRouter will automatically redirect once auth state updates
+
+  } on FirebaseAuthException catch (e) {
     if (!mounted) return;
 
-    setState(() => _isLoading = true);
+    String errorMsg = "Invalid OTP. Try again.";
 
-    try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId,
-        smsCode: _otpController.text.trim(),
+    switch (e.code) {
+      case 'invalid-verification-code':
+        errorMsg = "The code you entered is incorrect.";
+        break;
+      case 'session-expired':
+        errorMsg = "OTP expired. Please request a new one.";
+        break;
+      case 'too-many-requests':
+        errorMsg = "Too many attempts. Try again later.";
+        break;
+    }
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(errorMsg)));
+
+  } catch (e) {
+    debugPrint("OTP verification error: $e");
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Verification failed. Try again.")),
       );
-
-      UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
-
-      // CHECK MOUNTED BEFORE PROCEEDING
-      if (!mounted) return;
-
-      // SAVE TO FIRESTORE
-      if (userCredential.user != null) {
-        await _saveUserToFirestore(userCredential.user!);
-      }
-
-      // CHECK MOUNTED AGAIN BEFORE NAVIGATION
-      if (!mounted) return;
-
-      // USE SAFE NAVIGATION
-      _navigateToHomeIfMounted();
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        String errorMsg = "Invalid OTP. Try again.";
-        if (e.code == 'invalid-verification-code') {
-          errorMsg = "The code you entered is incorrect.";
-        }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(errorMsg)));
-      }
-    } catch (e) {
-      debugPrint("OTP verification error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Verification failed. Try again.")),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   Future<void> _handleGuestLogin() async {
+  if (!mounted) return;
+
+  setState(() => _isLoading = true);
+
+  try {
+    User? user = _auth.currentUser;
+
+    // 🔐 Sign in anonymously if not logged in
+    if (user == null) {
+      final result = await _auth.signInAnonymously();
+      user = result.user;
+    }
+
+    if (user == null) {
+      throw Exception("Guest login failed: user is null");
+    }
+
+    // 💾 Save user (non-blocking safe)
+    await _saveUserToFirestore(user);
+
     if (!mounted) return;
 
-    setState(() => _isLoading = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Continuing as Guest")),
+    );
 
-    try {
-      User? user = _auth.currentUser;
+    // 🚫 DO NOT navigate
+    // GoRouter will auto-redirect after auth state updates
 
-      if (user == null) {
-        final result = await _auth.signInAnonymously();
-        user = result.user;
-      }
-
-      if (user != null) {
-        await _saveUserToFirestore(user);
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Continuing as Guest")));
-
-        _navigateToHomeIfMounted();
-      }
-    } catch (e) {
-      debugPrint("Guest login error: $e");
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Guest login failed")));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  /// SAFE NAVIGATION - Won't crash even if context is disposed
-  void _navigateToHomeIfMounted() {
+  } on FirebaseAuthException catch (e) {
     if (!mounted) return;
 
-    try {
-      context.go('/home', extra: int.parse(categoryId));
-    } catch (e) {
-      debugPrint("Navigation error: $e");
-      // Silent fail - widget is likely disposed
+    String message = "Guest login failed";
+
+    switch (e.code) {
+      case 'operation-not-allowed':
+        message = "Guest login is disabled";
+        break;
+      case 'too-many-requests':
+        message = "Too many attempts. Try later";
+        break;
     }
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+
+  } catch (e) {
+    debugPrint("Guest login error: $e");
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Guest login failed")),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
   }
+}
+
 
   //============================ UI BUILD METHOD WITH MODERN DESIGN ==============================
   @override

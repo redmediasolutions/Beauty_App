@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:glowfit/navbar.dart';
+import 'package:glowfit/services/gorouter.dart';
 import 'package:go_router/go_router.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -74,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (!auth.isInitialized) return;
 
     if (auth.user != null) {
-      context.go('/home');
+      context.go('/');
     } else {
       context.go('/login');
     }

@@ -16,7 +16,7 @@ class CartPage extends StatefulWidget {
 class _CartPageState extends State<CartPage> {
   final ScrollController _scrollController = ScrollController();
   bool _usePoints = false;
-  String _selectedPayment = "online";
+  String _selectedPayment = "cod";
   late Razorpay _razorpay;
   Map<String, dynamic>? _selectedAddress;
 
@@ -24,6 +24,8 @@ Map<String, dynamic> _rates = {};
 Map<String, double> _totals = {};
 
 String? _razorpayOrderId;
+
+bool _isProcessing = false;
 
   @override
 void initState() {
@@ -71,6 +73,29 @@ Future<void> _fetchRates() async {
 }
 
 Future<void> _startCheckout() async {
+  if (!mounted) return;
+
+  if (_selectedAddress == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please select an address")),
+    );
+    return;
+  }
+
+  /// ✅ AUTH CHECK (CRITICAL FIX)
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please login to continue")),
+    );
+    return;
+  }
+
+  /// 🔥 Ensure token is ready (VERY IMPORTANT)
+  await user.getIdToken(true);
+
+  _showProcessingSheet(); // 🔥 SHOW LOADER
+
   try {
     final result = await FirebaseFunctions.instance
         .httpsCallable('createSecureOrder')
@@ -84,23 +109,48 @@ Future<void> _startCheckout() async {
     final double payable = (data['finalPayable'] ?? 0).toDouble();
     _razorpayOrderId = data['razorpayOrderId'];
 
+    /// ✅ COD / FREE ORDER FLOW
     if (_selectedPayment == "cod" || payable <= 0) {
+      _hideProcessingSheet(); // 🔥 FIX: close before finalize
       await _finalizeOrder(null, null, null);
       return;
     }
 
-    if (_selectedAddress == null) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Please select an address")),
-  );
-  return;
-}
-
+    /// ✅ ONLINE PAYMENT FLOW
+    _hideProcessingSheet(); // 🔥 CLOSE before Razorpay
     _openRazorpay(payable);
+
+  } on FirebaseFunctionsException catch (e) {
+    _hideProcessingSheet();
+
+    debugPrint("Checkout error: ${e.code} - ${e.message}");
+
+    if (!mounted) return;
+
+    String message = "Something went wrong";
+
+    if (e.code == "unauthenticated") {
+      message = "Session expired. Please login again.";
+    } else if (e.code == "invalid-argument") {
+      message = e.message ?? "Invalid request";
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+
   } catch (e) {
+    _hideProcessingSheet();
     debugPrint("Checkout error: $e");
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Checkout failed. Try again.")),
+    );
   }
 }
+
 
 void _openRazorpay(double amount) {
   final options = {
@@ -114,41 +164,53 @@ void _openRazorpay(double amount) {
   _razorpay.open(options);
 }
 
+
+
 Future<void> _finalizeOrder(
-    String? orderId,
-    String? paymentId,
-    String? signature,
-    ) async {
+  String? orderId,
+  String? paymentId,
+  String? signature,
+) async {
   try {
-    await FirebaseFunctions.instance
+    final result = await FirebaseFunctions.instance
         .httpsCallable('finalizeOrder')
         .call({
       'razorpayOrderId': orderId,
       'razorpayPaymentId': paymentId,
       'razorpaySignature': signature,
-    'billing': {
-  'first_name': _selectedAddress!['name'],
-  'phone': _selectedAddress!['phone'],
-  'address_1': _selectedAddress!['address'],
-  'city': _selectedAddress!['city'],
-  'state': _selectedAddress!['state'],
-  'postcode': _selectedAddress!['pincode'],
-  'country': 'IN',
-},
-'shipping': {
-  'first_name': _selectedAddress!['name'],
-  'phone': _selectedAddress!['phone'],
-  'address_1': _selectedAddress!['address'],
-  'city': _selectedAddress!['city'],
-  'state': _selectedAddress!['state'],
-  'postcode': _selectedAddress!['pincode'],
-  'country': 'IN',
-},
+      'billing': {
+        'first_name': _selectedAddress!['name'],
+        'phone': _selectedAddress!['phone'],
+        'address_1': _selectedAddress!['address'],
+        'city': _selectedAddress!['city'],
+        'state': _selectedAddress!['state'],
+        'postcode': _selectedAddress!['pincode'],
+        'country': 'IN',
+      },
+      'shipping': {
+        'first_name': _selectedAddress!['name'],
+        'phone': _selectedAddress!['phone'],
+        'address_1': _selectedAddress!['address'],
+        'city': _selectedAddress!['city'],
+        'state': _selectedAddress!['state'],
+        'postcode': _selectedAddress!['pincode'],
+        'country': 'IN',
+      },
     });
 
-    context.go('/orderSuccess');
+    final data = Map<String, dynamic>.from(result.data);
+
+    final String wooOrderId = data['orderId'].toString(); // ✅ THIS IS KEY
+
+    debugPrint("✅ Woo Order ID: $wooOrderId");
+
+    context.go('/ordersuccess', extra: wooOrderId); // ✅ PASS CORRECT ID
   } catch (e) {
     debugPrint("Finalize error: $e");
+
+    if (mounted) {
+      context.go('/orderfailed', extra: "Failed to place order");
+    }
   }
 }
 
@@ -201,7 +263,7 @@ void _calculateTotals(List docs) {
                           if (context.canPop()) {
                             context.pop();
                           } else {
-                            context.go('/home'); // fallback
+                            context.go('/'); // fallback
                           }
                         },
                       ),
@@ -604,7 +666,7 @@ void _openAddressSelector() {
         ),
         const SizedBox(height: 12),
 
-        _paymentTile("online", "Pay Now", Icons.credit_card),
+        //_paymentTile("online", "Pay Now", Icons.credit_card),
         const SizedBox(height: 10),
         _paymentTile("cod", "Cash on Delivery", Icons.money),
       ],
@@ -868,7 +930,13 @@ void _openAddressSelector() {
     return SizedBox(
       height: 60,
       child: ElevatedButton(
-        onPressed: _startCheckout,
+        onPressed: _isProcessing
+    ? null
+    : () async {
+        setState(() => _isProcessing = true);
+        await _startCheckout();
+        setState(() => _isProcessing = false);
+      },
         style: ElevatedButton.styleFrom(
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
@@ -947,4 +1015,45 @@ void _openAddressSelector() {
         .doc(docId)
         .delete();
   }
+
+  void _showProcessingSheet() {
+  showModalBottomSheet(
+    context: context,
+    isDismissible: true,
+    enableDrag: false,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+    ),
+    builder: (context) {
+      return SizedBox(
+        height: 400,
+        width: double.infinity,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            CircularProgressIndicator(color: Color(0xFF6F0562)),
+            SizedBox(height: 20),
+            Text(
+              "Processing your order...",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(height: 6),
+            Text(
+              "Please wait, do not go back",
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+void _hideProcessingSheet() {
+  if (Navigator.canPop(context)) {
+    Navigator.pop(context);
+  }
+}
+
 }

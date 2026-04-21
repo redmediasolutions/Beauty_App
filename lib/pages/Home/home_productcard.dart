@@ -21,7 +21,7 @@ class HomeFeaturedProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/productview', extra: product),
+      onTap: () => context.push('/product/${product.id}'),
       child: SizedBox(
         width: 210,
         child: Column(

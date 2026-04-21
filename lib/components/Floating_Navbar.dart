@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:glowfit/models/product_detail.dart';
 import 'package:go_router/go_router.dart';
 
 class FloatingNavBar extends StatelessWidget {
@@ -12,7 +13,7 @@ class FloatingNavBar extends StatelessWidget {
     final String location = GoRouterState.of(context).uri.path;
 
     int getSelectedIndex() {
-      if (location == '/home') return 0;
+      if (location == '/') return 0;
       if (location == '/AllProducts') return 1;
       if (location == '/search') return 2;
       return 0;
@@ -47,7 +48,7 @@ class FloatingNavBar extends StatelessWidget {
                     context,
                     Icons.home_outlined,
                     0,
-                    '/home',
+                    '/',
                     selectedIndex,
                   ),
                   _buildNavItem(

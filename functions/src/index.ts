@@ -1,7 +1,5 @@
 import { onCall, onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
-import Razorpay from "razorpay";
-import * as crypto from "crypto";
 import axios from "axios";
 import { Request, Response } from "express";
 
@@ -41,7 +39,6 @@ export const createSecureOrder = onCall(async (request) => {
   if (!request.auth) throw new Error("Unauthenticated");
 
   const uid = request.auth.uid;
-  const paymentMethod = request.data.paymentMethod;
 
   const cartSnap = await admin
     .firestore()
@@ -65,26 +62,9 @@ export const createSecureOrder = onCall(async (request) => {
       : SHIPPING_ABOVE_THRESHOLD;
 
   const tax = subtotal * TAX_PERCENTAGE;
-  const codCharge = paymentMethod === "cod" ? COD_CHARGE : 0;
+  const codCharge = COD_CHARGE;
 
   const finalPayable = subtotal + shipping + tax + codCharge;
-
-  let razorpayOrderId: string | null = null;
-
-  if (paymentMethod === "online" && finalPayable > 0) {
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY!,
-      key_secret: process.env.RAZORPAY_SECRET!,
-    });
-
-    const order = await razorpay.orders.create({
-      amount: Math.round(finalPayable * 100),
-      currency: "INR",
-      receipt: `order_${Date.now()}`,
-    });
-
-    razorpayOrderId = order.id;
-  }
 
   return {
     subtotal,
@@ -92,7 +72,6 @@ export const createSecureOrder = onCall(async (request) => {
     tax,
     codCharge,
     finalPayable,
-    razorpayOrderId,
   };
 });
 
@@ -106,26 +85,11 @@ export const finalizeOrder = onCall(async (request) => {
   const uid = request.auth.uid;
 
   const {
-    razorpayOrderId,
-    razorpayPaymentId,
-    razorpaySignature,
     billing,
     shipping,
   } = request.data || {};
 
-  // 🔐 Verify Razorpay
-  if (razorpayOrderId && razorpayPaymentId && razorpaySignature) {
-    const body = razorpayOrderId + "|" + razorpayPaymentId;
 
-    const expected = crypto
-      .createHmac("sha256", process.env.RAZORPAY_SECRET!)
-      .update(body)
-      .digest("hex");
-
-    if (expected !== razorpaySignature) {
-      throw new Error("Invalid payment signature");
-    }
-  }
 
   const cartRef = admin
     .firestore()
@@ -157,8 +121,8 @@ export const finalizeOrder = onCall(async (request) => {
     subtotal,
     shipping: shippingAmount,
     tax,
-    paymentMethod: razorpayPaymentId ? "online" : "cod",
-    billing,
+    paymentMethod: "cod",
+        billing,
     shippingAddress: shipping,
   });
 
@@ -178,8 +142,8 @@ export const finalizeOrder = onCall(async (request) => {
       subtotal,
       shipping: shippingAmount,
       tax,
-      paymentMethod: razorpayPaymentId ? "online" : "cod",
-      paymentStatus: razorpayPaymentId ? "paid" : "pending",
+      paymentMethod: "cod",
+      paymentStatus: "pending",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   });
@@ -247,17 +211,24 @@ async function createWooOrder({
   });
 
   const body = {
-    payment_method: paymentMethod === "online" ? "razorpay" : "cod",
-    set_paid: paymentMethod === "online",
+    payment_method: "cod",
+    set_paid: false,
     billing,
     shipping: shippingAddress,
     line_items: lineItems,
-    shipping_lines: [
-      {
-        method_title: "Standard Shipping",
-        total: shipping.toFixed(2),
-      },
-    ],
+  shipping_lines: [
+
+  {
+
+    method_id: "flat_rate:1", // must match your Woo zone
+
+    method_title: "Standard Shipping",
+
+    total: shipping.toFixed(2),
+
+  },
+
+],
     tax_lines: [
       {
         label: "GST",
@@ -267,16 +238,13 @@ async function createWooOrder({
     meta_data: [{ key: "app_uid", value: uid }],
   };
 
-  const response = await axios.post(
-    "https://gs.redmediasolutions.in/wp-json/wc/v3/orders",
-    body,
-    {
-      auth: {
-        username: "ck_1f90c93d45a4593f00f89ba5c942001e13898e09",
-        password: "cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392",
-      },
-    }
-  );
+  const consumerKey = "ck_1f90c93d45a4593f00f89ba5c942001e13898e09";
+
+const consumerSecret = "cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392";
+
+const url = `https://gs.redmediasolutions.in/wp-json/wc/v3/orders?consumer_key=${consumerKey}&consumer_secret=${consumerSecret}`;
+
+const response = await axios.post(url, body);
 
   return response.data;
 }

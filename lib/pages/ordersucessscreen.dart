@@ -1,12 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:glowfit/pages/Home/home.dart';
+import 'dart:async';
 
-import 'package:go_router/go_router.dart'; // Or your preferred navigation
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
 class SuccessSplashScreen extends StatefulWidget {
-  const SuccessSplashScreen({super.key});
+  final String? orderId;
+
+
+  const SuccessSplashScreen({super.key, this.orderId});
 
   @override
   State<SuccessSplashScreen> createState() => _SuccessSplashScreenState();
@@ -16,45 +19,40 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Auto-navigate to Home after 3 seconds
+
     Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        // Use pushReplacement so the user can't "Go Back" to the success screen
-    
-       Navigator.push(context,MaterialPageRoute(builder: (context)=>Homepage(categoryId: '19',)));
-          
-           }
+      if (mounted && widget.orderId != null) {
+        context.go('/order/${widget.orderId}');
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+      print (widget.orderId);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // --- Your Lottie Animation ---
-            // --- Your Network Lottie Animation ---
+            // 🎉 Animation
             Lottie.network(
-              'https://assets9.lottiefiles.com/packages/lf20_your_animation_url.json', // Replace with your actual URL
-              width: 250,
-              height: 250,
+              'https://assets9.lottiefiles.com/packages/lf20_jbrw3hcz.json', // working success animation
+              width: 220,
+              height: 220,
               repeat: false,
-              // Optional: Shows a loading spinner while the JSON is fetching
               frameBuilder: (context, child, composition) {
                 if (composition == null) {
                   return const SizedBox(
-                    height: 250,
-                    child: Center(
-                      child: CircularProgressIndicator(color: Colors.black),
-                    ),
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
                   );
                 }
                 return child;
               },
-              // Optional: Handles errors (e.g., if the user is offline)
               errorBuilder: (context, error, stackTrace) {
                 return const Icon(
                   Icons.check_circle,
@@ -64,9 +62,9 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
               },
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // --- Success Text ---
+            // ✅ Title
             Text(
               "Order Placed!",
               style: GoogleFonts.tenorSans(
@@ -76,12 +74,61 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
+            // ✅ Subtitle
             Text(
               "Your skincare treats are on the way ✨",
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 16, color: Colors.black54),
+              style: GoogleFonts.inter(fontSize: 15, color: Colors.black54),
+            ),
+
+            // ✅ Order ID (optional)
+            if (widget.orderId != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                "Order ID: ${widget.orderId}",
+                style: GoogleFonts.inter(fontSize: 13, color: Colors.black45),
+              ),
+            ],
+
+            const SizedBox(height: 40),
+
+            // ✅ Button (important UX)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  context.goNamed(
+                    'orderDetail',
+                    pathParameters: {'id': widget.orderId!},
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.black,
+                ),
+                child: const Text(
+                  "Order Details",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  context.go('/');
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: Colors.black,
+                ),
+                child: const Text(
+                  "Continue Shopping",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
             ),
           ],
         ),

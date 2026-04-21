@@ -1,63 +1,78 @@
+import 'package:glowfit/models/product_imagesmodel.dart';
+import 'package:glowfit/models/producthighlight.dart';
+
 class ProductDetail {
   final int id;
   final String name;
- 
- 
+
+  /// EXTRA DETAILS
+  final String manufacturer;
+  final String content;
+
+  /// MEDIA
   final List<String> images;
+
+  /// PRICING
   final double price;
   final double? salePrice;
 
+  /// RELATIONS
   final List<int> relatedProductIds;
+
+  /// STOCK
+  final bool manageStock;
+  final String stockStatus;
+  final int? stockQuantity;
+  final bool isOutOfStock;
+
+  /// CATEGORY
+  final List<int> categoryIds;
+  final bool isNotForSale;
+
+  /// FINAL UI CONTROL
+  final bool canAddToCart;
+
+  /// PRODUCT HIGHLIGHTS
+  final List<ProductHighlight> highlights;
+
+  final String packing;
+
+  final List<ProductImage> addimages;
 
   ProductDetail({
     required this.id,
     required this.name,
-   
+    required this.manufacturer,
+    required this.content,
     required this.images,
     required this.price,
     this.salePrice,
-   
     required this.relatedProductIds,
+    required this.manageStock,
+    required this.stockStatus,
+    required this.stockQuantity,
+    required this.isOutOfStock,
+    required this.categoryIds,
+    required this.isNotForSale,
+    required this.canAddToCart,
+    required this.highlights,
+    required this.packing,
+    this.addimages = const [],
   });
 
   factory ProductDetail.fromJson(Map<String, dynamic> json) {
+
+    /// 🏷️ BRAND
     String manufacturer = '';
-    String content = '';
-    String saltComposition = '';
-    String competitor = '';
-
-    /// 🔍 META DATA PARSING
-    if (json['meta_data'] is List) {
-      for (final item in json['meta_data']) {
-        if (item is Map<String, dynamic>) {
-          switch (item['key']) {
-            case 'manufacturer':
-              manufacturer = item['value']?.toString() ?? manufacturer;
-              break;
-
-            case 'product_content':
-              content = item['value']?.toString() ?? content;
-              break;
-
-            case 'salt_composition':
-              saltComposition = item['value']?.toString() ?? saltComposition;
-              break;
-
-            case 'competitor_product_&_namw':
-              competitor = item['value']?.toString() ?? competitor;
-              break;
-          }
-        }
-      }
-    }
-
-    /// 🏷️ BRAND OVERRIDE
     if (json['brands'] is List && json['brands'].isNotEmpty) {
       final brand = json['brands'][0];
       if (brand is Map<String, dynamic>) {
-        manufacturer = brand['name']?.toString() ?? manufacturer;
+        manufacturer = brand['name']?.toString() ?? '';
       }
     }
+
+    /// 📝 DESCRIPTION
+    String content = json['description']?.toString() ?? '';
 
     /// 🖼️ IMAGES
     final List<String> images =
@@ -67,7 +82,7 @@ class ProductDetail {
                 .toList() ??
             [];
 
-    /// 🔗 RELATED PRODUCT IDS
+    /// 🔗 RELATED PRODUCTS
     final List<int> relatedProductIds =
         (json['related_ids'] as List?)
                 ?.map((e) => e is int
@@ -77,19 +92,162 @@ class ProductDetail {
                 .toList() ??
             [];
 
+    final List<ProductImage> addimages =
+    (json['images'] as List?)
+            ?.skip(1) // ✅ SKIP FIRST IMAGE
+            .map((e) => ProductImage(
+                  url: e['src']?.toString() ?? '',
+                  alt: e['alt']?.toString() ?? '',
+                ))
+            .where((e) => e.url.isNotEmpty)
+            .toList() ??
+        [];
+
+    /// 📂 CATEGORY IDS
+    final List<int> categoryIds =
+        (json['categories'] as List?)
+                ?.map((e) => e['id'])
+                .whereType<int>()
+                .toList() ??
+            [];
+
+    final bool isNotForSale = categoryIds.contains(40);
+
+    /// 📦 PACKING / PACKAGE
+String extractPacking(List<dynamic>? metaData) {
+  if (metaData == null) return '';
+
+  for (var item in metaData) {
+    final key = item['key']?.toString();
+
+    if (key == 'package' || key == 'packing') {
+      final value = item['value']?.toString().trim();
+
+      if (value != null && value.isNotEmpty && value != '0') {
+        return value;
+      }
+    }
+  }
+
+  return '';
+}
+
+final packing = extractPacking(json['meta_data']);
+
+    /// 📦 STOCK
+    final bool manageStock = json['manage_stock'] == true;
+
+    final String stockStatus =
+        json['stock_status']?.toString() ?? 'instock';
+
+    final int? stockQuantity =
+        json['stock_quantity'] != null
+            ? int.tryParse(json['stock_quantity'].toString())
+            : null;
+
+    bool isOutOfStock = false;
+
+    if (manageStock) {
+      if (stockQuantity == null || stockQuantity < 10) {
+        isOutOfStock = true;
+      }
+    } else {
+      isOutOfStock = stockStatus != 'instock';
+    }
+
+    /// 🛒 FINAL RULE
+    final bool canAddToCart = !isOutOfStock && !isNotForSale;
+
+    /// 🌟 HIGHLIGHTS EXTRACTION
+    List<ProductHighlight> extractHighlights(List<dynamic>? metaData) {
+      if (metaData == null) return [];
+
+      Map<String, dynamic> map = {};
+
+      for (var item in metaData) {
+        map[item['key']] = item['value'];
+      }
+
+      /// 🧹 Clean helper (handles "0")
+      String clean(dynamic value) {
+        if (value == null) return '';
+        final v = value.toString().trim();
+        if (v.isEmpty || v == '0') return '';
+        return v;
+      }
+
+      List<ProductHighlight> list = [];
+
+      void addHighlight(String prefix) {
+        final iconData = map['${prefix}_icon'];
+
+        final title = clean(map['${prefix}_title']);
+        final desc = clean(map['${prefix}_description']);
+
+        String icon = '';
+
+        if (iconData is Map && iconData['value'] != null) {
+          final rawIcon = iconData['value'].toString();
+          if (rawIcon != '0') {
+            icon = rawIcon;
+          }
+        }
+
+        /// 🚫 Skip empty cards
+        if (title.isEmpty && desc.isEmpty) return;
+
+        list.add(ProductHighlight(
+          icon: icon,
+          title: title,
+          description: desc,
+        ));
+      }
+
+      addHighlight('highlights');
+      addHighlight('highlights_copy');
+      addHighlight('highlights_copy2');
+      addHighlight('highlights_copy3');
+
+      return list;
+    }
+
+    final highlights = extractHighlights(json['meta_data']);
+
     return ProductDetail(
       id: json['id'] is int
           ? json['id']
           : int.tryParse(json['id'].toString()) ?? 0,
+
       name: json['name']?.toString() ?? '',
-     
+
+      manufacturer: manufacturer,
+      content: content,
+
       images: images,
+
+      addimages: addimages,
+
       price: double.tryParse(json['regular_price']?.toString() ?? '') ??
           double.tryParse(json['price']?.toString() ?? '') ??
           0.0,
-      salePrice: double.tryParse(json['sale_price']?.toString() ?? ''),
-     
+
+      salePrice:
+          double.tryParse(json['sale_price']?.toString() ?? ''),
+
       relatedProductIds: relatedProductIds,
+
+      manageStock: manageStock,
+      stockStatus: stockStatus,
+      stockQuantity: stockQuantity,
+      isOutOfStock: isOutOfStock,
+
+      categoryIds: categoryIds,
+      isNotForSale: isNotForSale,
+
+      canAddToCart: canAddToCart,
+
+      highlights: highlights, 
+      packing: packing, // ✅ FINAL ADDITION
     );
   }
 }

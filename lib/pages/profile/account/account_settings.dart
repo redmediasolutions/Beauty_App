@@ -27,7 +27,7 @@ class AccountSettings extends StatelessWidget {
           title: "Create Profile",
           isActive: false,
           onTap: () {
-           context.go('/editprofile');
+           context.push('/editprofile');
           },
         ),
         _settingsTile(
@@ -35,21 +35,23 @@ class AccountSettings extends StatelessWidget {
           title: "Shipping Addresses",
           isActive: false,
           onTap: () {
-            context.go('/address');
+            context.push('/address');
           },
         ),
         _settingsTile(
           icon: Icons.notifications_none_outlined,
           title: "Orders",
           isActive: false,
-          onTap: () => (),
+          onTap: () {
+            context.push('/orders');
+          },
         ),
         _settingsTile(
           icon: Icons.card_membership_outlined,
           title: "Loyalty Points",
           isActive: false,
            onTap: () {
-            context.go('/points');
+            context.push('/points');
           },
         ),
       ],

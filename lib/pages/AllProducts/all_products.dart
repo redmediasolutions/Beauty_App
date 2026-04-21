@@ -71,6 +71,7 @@ class _AllProductsState extends State<AllProducts> {
       final newProducts = await APIService.fetchProducts(
         page: _currentPage,
         perPage: 10, // Fetch smaller chunks
+        categoryId: 41
       );
 
       setState(() {
@@ -106,7 +107,7 @@ class _AllProductsState extends State<AllProducts> {
             children: [
               // --- Header Section ---
               Padding(
-                padding: const EdgeInsets.fromLTRB(25, 40, 25, 0),
+                padding: const EdgeInsets.fromLTRB(18, 40, 18, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -134,7 +135,7 @@ class _AllProductsState extends State<AllProducts> {
                     ).animate().fadeIn(delay: 200.ms),
 
                     //category list
-                    SizedBox(
+                    /*SizedBox(
                       height: 100,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -165,7 +166,7 @@ class _AllProductsState extends State<AllProducts> {
                           );
                         },
                       ),
-                    ),
+                    ),*/
 
                     if (_products.isEmpty && _isLoading)
                       const Center(child: CircularProgressIndicator())
@@ -191,14 +192,13 @@ class _AllProductsState extends State<AllProducts> {
                         itemBuilder: (context, index) {
                           final p = _products[index];
                           return GestureDetector(
-                            onTap: () {
-                              context.push('/productview', extra: p);
-                            },
+                           onTap: () {
+  context.push('/product/${p.id}');
+},
                             child: ProductsList(
                               id: p.id.toString(),
                               name: p.name,
                               imageUrl: p.image,
-                              regularPrice: p.salePrice,
                               product: p,
                               onAddToCart: () => print("Added ${p.name}"),
                             ),
