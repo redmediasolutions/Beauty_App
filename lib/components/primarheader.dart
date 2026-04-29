@@ -30,7 +30,7 @@ class PrimaryHeader extends StatelessWidget {
             padding: const EdgeInsets.only(right: 5),
             child: IconButton(
               onPressed: () {
-                context.go('/profile'); // ✅ using go_router (recommended)
+                context.go('/profile'); // using go_router (recommended)
               },
               icon: const Icon(
                 Icons.person_outline,

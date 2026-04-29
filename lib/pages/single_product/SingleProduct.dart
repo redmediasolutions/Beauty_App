@@ -105,7 +105,7 @@ int quantity = 1;
       HapticFeedback.mediumImpact();
     }
   } catch (e) {
-    debugPrint("❌ Add to cart error: $e");
+    debugPrint("Add to cart error: $e");
   } finally {
     if (mounted) {
       setState(() => _isAdding = false);
@@ -212,7 +212,7 @@ int quantity = 1;
         ),
       ),
 
-      /// 🔥 FLOATING ADD TO CART
+      /// FLOATING ADD TO CART
      Positioned(
   bottom: 0,
   left: 0,

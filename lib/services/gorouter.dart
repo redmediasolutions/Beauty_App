@@ -180,7 +180,6 @@ GoRoute(
             builder: (context, state) => const Searchpage(),
           ),
 
-          /// 👤 PROFILE
           GoRoute(
             path: '/profile',
             builder: (context, state) => const Profile(),

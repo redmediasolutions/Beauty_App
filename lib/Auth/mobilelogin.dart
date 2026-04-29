@@ -62,556 +62,514 @@ class _MobileLoginState extends State<MobileLogin> {
 
   //===============================OTP SENDING LOGIC - FIXED FOR iOS ===============================
   Future<void> _sendOtp() async {
-  if (!mounted) return;
-
-  final phone = _phoneController.text.trim();
-
-  if (phone.length < 10) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Enter a valid mobile number")),
-    );
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  final String fullPhoneNumber = "+91$phone";
-
-  try {
-    await _auth.verifyPhoneNumber(
-      phoneNumber: fullPhoneNumber,
-
-      /// 🔥 AUTO VERIFICATION (ANDROID)
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        try {
-          final userCredential =
-              await _auth.signInWithCredential(credential);
-
-          final user = userCredential.user;
-
-          if (user != null) {
-            await _saveUserToFirestore(user);
-          }
-
-          // 🚫 DO NOT NAVIGATE HERE
-          // GoRouter will handle redirect
-
-        } catch (e) {
-          debugPrint("Auto-verification error: $e");
-        }
-      },
-
-      /// ❌ FAILED
-      verificationFailed: (FirebaseAuthException e) {
-        if (!mounted) return;
-
-        String message = e.message ?? "Verification failed";
-
-        if (e.code == 'invalid-phone-number') {
-          message = "Invalid phone number";
-        }
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
-
-        setState(() => _isLoading = false);
-      },
-
-      /// 📩 OTP SENT
-      codeSent: (String verificationId, int? resendToken) {
-        if (!mounted) return;
-
-        setState(() {
-          _verificationId = verificationId;
-          _isOtpSent = true;
-          _isLoading = false;
-        });
-      },
-
-      /// ⏳ AUTO TIMEOUT
-      codeAutoRetrievalTimeout: (String verificationId) {
-        _verificationId = verificationId;
-      },
-
-      timeout: const Duration(seconds: 120),
-    );
-  } catch (e) {
-    debugPrint("Error sending OTP: $e");
-
     if (!mounted) return;
 
-    setState(() => _isLoading = false);
+    final phone = _phoneController.text.trim();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Failed to send OTP. Try again.")),
-    );
+    if (phone.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Enter a valid mobile number")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final String fullPhoneNumber = "+91$phone";
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: fullPhoneNumber,
+
+        /// AUTO VERIFICATION (ANDROID)
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          try {
+            final userCredential = await _auth.signInWithCredential(credential);
+
+            final user = userCredential.user;
+
+            if (user != null) {
+              await _saveUserToFirestore(user);
+            }
+
+            // DO NOT NAVIGATE HERE
+            // GoRouter will handle redirect
+          } catch (e) {
+            debugPrint("Auto-verification error: $e");
+          }
+        },
+
+        /// FAILED
+        verificationFailed: (FirebaseAuthException e) {
+          if (!mounted) return;
+
+          String message = e.message ?? "Verification failed";
+
+          if (e.code == 'invalid-phone-number') {
+            message = "Invalid phone number";
+          }
+
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+
+          setState(() => _isLoading = false);
+        },
+
+        /// OTP SENT
+        codeSent: (String verificationId, int? resendToken) {
+          if (!mounted) return;
+
+          setState(() {
+            _verificationId = verificationId;
+            _isOtpSent = true;
+            _isLoading = false;
+          });
+        },
+
+        /// AUTO TIMEOUT
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+
+        timeout: const Duration(seconds: 120),
+      );
+    } catch (e) {
+      debugPrint("Error sending OTP: $e");
+
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to send OTP. Try again.")),
+      );
+    }
   }
-}
 
   //===============================OTP VERIFICATION LOGIC - FIXED FOR iOS ===============================
   Future<void> _verifyOtp() async {
-  if (!mounted) return;
-
-  final otp = _otpController.text.trim();
-
-  if (otp.length != 6) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Enter a valid 6-digit OTP")),
-    );
-    return;
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final credential = PhoneAuthProvider.credential(
-      verificationId: _verificationId,
-      smsCode: otp,
-    );
-
-    final userCredential =
-        await _auth.signInWithCredential(credential);
-
-    final user = userCredential.user;
-
-    if (user != null) {
-      await _saveUserToFirestore(user);
-    }
-
-    // ✅ IMPORTANT:
-    // DO NOT navigate here
-    // GoRouter will automatically redirect once auth state updates
-
-  } on FirebaseAuthException catch (e) {
     if (!mounted) return;
 
-    String errorMsg = "Invalid OTP. Try again.";
+    final otp = _otpController.text.trim();
 
-    switch (e.code) {
-      case 'invalid-verification-code':
-        errorMsg = "The code you entered is incorrect.";
-        break;
-      case 'session-expired':
-        errorMsg = "OTP expired. Please request a new one.";
-        break;
-      case 'too-many-requests':
-        errorMsg = "Too many attempts. Try again later.";
-        break;
-    }
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(errorMsg)));
-
-  } catch (e) {
-    debugPrint("OTP verification error: $e");
-
-    if (mounted) {
+    if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Verification failed. Try again.")),
+        const SnackBar(content: Text("Enter a valid 6-digit OTP")),
       );
+      return;
     }
-  } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
+
+    setState(() => _isLoading = true);
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId,
+        smsCode: otp,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      final user = userCredential.user;
+
+      if (user != null) {
+        await _saveUserToFirestore(user);
+      }
+
+      // IMPORTANT:
+      // DO NOT navigate here
+      // GoRouter will automatically redirect once auth state updates
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String errorMsg = "Invalid OTP. Try again.";
+
+      switch (e.code) {
+        case 'invalid-verification-code':
+          errorMsg = "The code you entered is incorrect.";
+          break;
+        case 'session-expired':
+          errorMsg = "OTP expired. Please request a new one.";
+          break;
+        case 'too-many-requests':
+          errorMsg = "Too many attempts. Try again later.";
+          break;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(errorMsg)));
+    } catch (e) {
+      debugPrint("OTP verification error: $e");
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Verification failed. Try again.")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
-}
 
   Future<void> _handleGuestLogin() async {
-  if (!mounted) return;
-
-  setState(() => _isLoading = true);
-
-  try {
-    User? user = _auth.currentUser;
-
-    // 🔐 Sign in anonymously if not logged in
-    if (user == null) {
-      final result = await _auth.signInAnonymously();
-      user = result.user;
-    }
-
-    if (user == null) {
-      throw Exception("Guest login failed: user is null");
-    }
-
-    // 💾 Save user (non-blocking safe)
-    await _saveUserToFirestore(user);
-
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Continuing as Guest")),
-    );
+    setState(() => _isLoading = true);
 
-    // 🚫 DO NOT navigate
-    // GoRouter will auto-redirect after auth state updates
+    try {
+      User? user = _auth.currentUser;
 
-  } on FirebaseAuthException catch (e) {
-    if (!mounted) return;
+      // Sign in anonymously if not logged in
+      if (user == null) {
+        final result = await _auth.signInAnonymously();
+        user = result.user;
+      }
 
-    String message = "Guest login failed";
+      if (user == null) {
+        throw Exception("Guest login failed: user is null");
+      }
 
-    switch (e.code) {
-      case 'operation-not-allowed':
-        message = "Guest login is disabled";
-        break;
-      case 'too-many-requests':
-        message = "Too many attempts. Try later";
-        break;
+      // Save user (non-blocking safe)
+      await _saveUserToFirestore(user);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Continuing as Guest")));
+
+      // DO NOT navigate
+      // GoRouter will auto-redirect after auth state updates
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String message = "Guest login failed";
+
+      switch (e.code) {
+        case 'operation-not-allowed':
+          message = "Guest login is disabled";
+          break;
+        case 'too-many-requests':
+          message = "Too many attempts. Try later";
+          break;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      debugPrint("Guest login error: $e");
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Guest login failed")));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-
-  } catch (e) {
-    debugPrint("Guest login error: $e");
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Guest login failed")),
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
-
 
   //============================ UI BUILD METHOD WITH MODERN DESIGN ==============================
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: const Color(0xFFFCF9F9),
-    body: SafeArea(
-      child: Stack(
-        children: [
-          /// 🌿 MAIN CONTENT
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 20),
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFCF9F9),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            /// 🌿 MAIN CONTENT
+            SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
 
-                /// --- BRAND ---
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Image.asset(
-                      'assets/images/gladskin.png',
-                      width: 120,
-                    ),
-                    const SizedBox(height: 12),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: 30,
-                      height: 1,
-                      color:
-                          const Color(0xFFB70B68).withOpacity(0.3),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 60),
-
-                /// --- HEADER ---
-                Text(
-                  _isOtpSent ? "Verification" : "Welcome",
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                /// 🔥 ANIMATED SECTION
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 500),
-                  child: Column(
-                    key: ValueKey(_isOtpSent),
+                  /// --- BRAND ---
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 6),
+                      Image.asset('assets/images/gladskin.png', width: 120),
+                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: 30,
+                        height: 1,
+                        color: const Color(0xFFB70B68).withOpacity(0.3),
+                      ),
+                    ],
+                  ),
 
-                      /// Subtitle animation
-                      TweenAnimationBuilder(
-                        duration: const Duration(milliseconds: 600),
-                        tween: Tween(begin: 20.0, end: 0.0),
-                        builder: (context, value, child) {
-                          return Transform.translate(
-                            offset: Offset(0, value),
-                            child: Opacity(
-                              opacity: 1 - (value / 20),
-                              child: child,
+                  const SizedBox(height: 60),
+
+                  /// --- HEADER ---
+                  Text(
+                    _isOtpSent ? "Verification" : "Welcome",
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  /// ANIMATED SECTION
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 500),
+                    child: Column(
+                      key: ValueKey(_isOtpSent),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 6),
+
+                        /// Subtitle animation
+                        TweenAnimationBuilder(
+                          duration: const Duration(milliseconds: 600),
+                          tween: Tween(begin: 20.0, end: 0.0),
+                          builder: (context, value, child) {
+                            return Transform.translate(
+                              offset: Offset(0, value),
+                              child: Opacity(
+                                opacity: 1 - (value / 20),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Text(
+                            _isOtpSent
+                                ? "Enter the code sent to +91 ${_phoneController.text}"
+                                : "LET'S GET STARTED",
+                            style: TextStyle(
+                              fontSize: 12,
+                              letterSpacing: 2,
+                              color: Colors.grey[600],
                             ),
-                          );
-                        },
-                        child: Text(
-                          _isOtpSent
-                              ? "Enter the code sent to +91 ${_phoneController.text}"
-                              : "LET'S GET STARTED",
-                          style: TextStyle(
-                            fontSize: 12,
-                            letterSpacing: 2,
-                            color: Colors.grey[600],
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 50),
+                        const SizedBox(height: 50),
 
-                      /// INPUT / OTP SWITCH
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 400),
-                        child: !_isOtpSent
-                            ? Column(
-                                key: const ValueKey("phone"),
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "MOBILE NUMBER",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      letterSpacing: 2,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: _phoneController,
-                                    keyboardType:
-                                        TextInputType.phone,
-                                    decoration: InputDecoration(
-                                      hintText: "+91 98765 43210",
-                                      border:
-                                          const UnderlineInputBorder(),
-                                      enabledBorder:
-                                          UnderlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color:
-                                                Colors.grey.shade300),
-                                      ),
-                                      focusedBorder:
-                                          const UnderlineInputBorder(
-                                        borderSide: BorderSide(
-                                            color:
-                                                Color(0xFF6F0562)),
+                        /// INPUT / OTP SWITCH
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 400),
+                          child: !_isOtpSent
+                              ? Column(
+                                  key: const ValueKey("phone"),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "MOBILE NUMBER",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        letterSpacing: 2,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.grey[600],
                                       ),
                                     ),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _phoneController,
+                                      keyboardType: TextInputType.phone,
+                                      decoration: InputDecoration(
+                                        hintText: "+91 98765 43210",
+                                        border: const UnderlineInputBorder(),
+                                        enabledBorder: UnderlineInputBorder(
+                                          borderSide: BorderSide(
+                                            color: Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        focusedBorder:
+                                            const UnderlineInputBorder(
+                                              borderSide: BorderSide(
+                                                color: Color(0xFF6F0562),
+                                              ),
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Center(
+                                  key: const ValueKey("otp"),
+                                  child: TweenAnimationBuilder(
+                                    duration: const Duration(milliseconds: 500),
+                                    tween: Tween(begin: 0.8, end: 1.0),
+                                    builder: (context, scale, child) {
+                                      return Transform.scale(
+                                        scale: scale,
+                                        child: child,
+                                      );
+                                    },
+                                    child: Pinput(
+                                      length: 6,
+                                      controller: _otpController,
+                                      onCompleted: (pin) => _verifyOtp(),
+                                    ),
                                   ),
-                                ],
-                              )
-                            : Center(
-                                key: const ValueKey("otp"),
-                                child: TweenAnimationBuilder(
-                                  duration: const Duration(
-                                      milliseconds: 500),
-                                  tween:
-                                      Tween(begin: 0.8, end: 1.0),
+                                ),
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        /// BUTTON
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : TweenAnimationBuilder(
+                                  duration: const Duration(milliseconds: 500),
+                                  tween: Tween(begin: 0.95, end: 1.0),
                                   builder: (context, scale, child) {
                                     return Transform.scale(
                                       scale: scale,
                                       child: child,
                                     );
                                   },
-                                  child: Pinput(
-                                    length: 6,
-                                    controller: _otpController,
-                                    onCompleted: (pin) =>
-                                        _verifyOtp(),
-                                  ),
-                                ),
-                              ),
-                      ),
-
-                      const SizedBox(height: 40),
-
-                      /// BUTTON
-                      AnimatedSwitcher(
-                        duration:
-                            const Duration(milliseconds: 300),
-                        child: _isLoading
-                            ? const Center(
-                                child:
-                                    CircularProgressIndicator(),
-                              )
-                            : TweenAnimationBuilder(
-                                duration: const Duration(
-                                    milliseconds: 500),
-                                tween:
-                                    Tween(begin: 0.95, end: 1.0),
-                                builder:
-                                    (context, scale, child) {
-                                  return Transform.scale(
-                                      scale: scale,
-                                      child: child);
-                                },
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  height: 58,
-                                  child: ElevatedButton(
-                                    onPressed: _isOtpSent
-                                        ? _verifyOtp
-                                        : _sendOtp,
-                                    style:
-                                        ElevatedButton.styleFrom(
-                                      padding: EdgeInsets.zero,
-                                      shape:
-                                          RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(
-                                                40),
-                                      ),
-                                      elevation: 0,
-                                    ),
-                                    child: Ink(
-                                      decoration:
-                                          const BoxDecoration(
-                                        gradient:
-                                            LinearGradient(
-                                          colors: [
-                                            Color(0xFF6F0562),
-                                            Color(0xFF8C277B),
-                                          ],
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    height: 58,
+                                    child: ElevatedButton(
+                                      onPressed: _isOtpSent
+                                          ? _verifyOtp
+                                          : _sendOtp,
+                                      style: ElevatedButton.styleFrom(
+                                        padding: EdgeInsets.zero,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            40,
+                                          ),
                                         ),
-                                        borderRadius:
-                                            BorderRadius.all(
-                                                Radius.circular(
-                                                    40)),
+                                        elevation: 0,
                                       ),
-                                      child: Center(
-                                        child: Text(
-                                          _isOtpSent
-                                              ? "VERIFY"
-                                              : "SEND OTP",
-                                          style:
-                                              const TextStyle(
-                                            letterSpacing: 2,
-                                            fontWeight:
-                                                FontWeight.bold,
-                                            color: Colors.white,
+                                      child: Ink(
+                                        decoration: const BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Color(0xFF6F0562),
+                                              Color(0xFF8C277B),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(40),
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            _isOtpSent ? "VERIFY" : "SEND OTP",
+                                            style: const TextStyle(
+                                              letterSpacing: 2,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
+                        ),
+
+                        if (!_isOtpSent) ...[
+                          const SizedBox(height: 30),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Divider(color: Colors.grey.shade300),
                               ),
-                      ),
-
-                      if (!_isOtpSent) ...[
-                        const SizedBox(height: 30),
-
-                        Row(
-                          children: [
-                            Expanded(
-                                child: Divider(
-                                    color:
-                                        Colors.grey.shade300)),
-                            const Padding(
-                              padding:
-                                  EdgeInsets.symmetric(
-                                      horizontal: 10),
-                              child: Text(
-                                "OR",
-                                style: TextStyle(
+                              const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text(
+                                  "OR",
+                                  style: TextStyle(
                                     fontSize: 11,
-                                    letterSpacing: 2),
+                                    letterSpacing: 2,
+                                  ),
+                                ),
                               ),
-                            ),
-                            Expanded(
-                                child: Divider(
-                                    color:
-                                        Colors.grey.shade300)),
-                          ],
-                        ),
-
-                        const SizedBox(height: 30),
-
-                        /// Guest button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: OutlinedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : _handleGuestLogin,
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(
-                                  color:
-                                      Colors.grey.shade300),
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(
-                                        40),
+                              Expanded(
+                                child: Divider(color: Colors.grey.shade300),
                               ),
-                            ),
-                            child: const Text(
-                              "CONTINUE AS GUEST",
-                              style: TextStyle(
-                                letterSpacing: 2,
-                                fontWeight:
-                                    FontWeight.w600,
-                                color: Colors.black87,
+                            ],
+                          ),
+
+                          const SizedBox(height: 30),
+
+                          /// Guest button
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: OutlinedButton(
+                              onPressed: _isLoading ? null : _handleGuestLogin,
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: Colors.grey.shade300),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(40),
+                                ),
+                              ),
+                              child: const Text(
+                                "CONTINUE AS GUEST",
+                                style: TextStyle(
+                                  letterSpacing: 2,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
 
-                      if (_isOtpSent) ...[
-                        const SizedBox(height: 20),
-                        Center(
-                          child: TextButton(
-                            onPressed: () => setState(
-                                () => _isOtpSent = false),
-                            child:
-                                const Text("Edit Phone Number"),
+                        if (_isOtpSent) ...[
+                          const SizedBox(height: 20),
+                          Center(
+                            child: TextButton(
+                              onPressed: () =>
+                                  setState(() => _isOtpSent = false),
+                              child: const Text("Edit Phone Number"),
+                            ),
                           ),
-                        ),
+                        ],
+
+                        const SizedBox(height: 100), // space for footer
                       ],
-
-                      const SizedBox(height: 100), // space for footer
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          /// ❤️ FOOTER (FIXED)
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: const [
-                Text(
-                  "made with ❤️ in Mangalore",
-                  style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 1,
-                    color: Color(0xFF85727D),
+            /// FOOTER (FIXED)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Column(
+                children: const [
+                  Text(
+                    "made with in Mangalore",
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 1,
+                      color: Color(0xFF85727D),
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  "Glad Innovations",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                    color: Color(0xFF6F0562),
+                  SizedBox(height: 4),
+                  Text(
+                    "Glad Innovations",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.5,
+                      color: Color(0xFF6F0562),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

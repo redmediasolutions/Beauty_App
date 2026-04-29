@@ -25,11 +25,11 @@ class ProductsList extends StatefulWidget {
 class _ProductsListState extends State<ProductsList> {
   @override
   Widget build(BuildContext context) {
-final double regular =
-    double.tryParse(widget.product.regularPrice?.toString() ?? '') ?? 0;
+    final double regular =
+        double.tryParse(widget.product.regularPrice?.toString() ?? '') ?? 0;
 
-final double sale =
-    double.tryParse(widget.product.salePrice?.toString() ?? '') ?? 0;
+    final double sale =
+        double.tryParse(widget.product.salePrice?.toString() ?? '') ?? 0;
 
     final bool hasDiscount = sale > 0 && sale < regular;
 
@@ -63,8 +63,10 @@ final double sale =
                           ),
                         )
                       : const Center(
-                          child: Icon(Icons.image_not_supported,
-                              color: Colors.grey),
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                          ),
                         ),
                 ),
 
@@ -75,7 +77,9 @@ final double sale =
                     left: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(8),
@@ -98,10 +102,10 @@ final double sale =
           Expanded(
             flex: 4,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   /// PRODUCT NAME
                   Text(
@@ -116,34 +120,37 @@ final double sale =
                     ),
                   ),
 
-                  const SizedBox(height: 6),
-
-                  /// 💰 PRICE SECTION
-                  Row(
-                    children: [
-                      /// SALE / FINAL PRICE
-                      Text(
-                        "₹${(hasDiscount ? sale : regular).toStringAsFixed(0)}",
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
-                      ),
-
-                      const SizedBox(width: 6),
-
-                      /// REGULAR PRICE (STRIKETHROUGH)
-                      if (hasDiscount)
+                  ///  PRICE SECTION
+                  Flexible(
+                    child: Row(
+                      children: [
+                        /// SALE / FINAL PRICE
                         Text(
-                          "₹${regular.toStringAsFixed(0)}",
+                          "₹${(hasDiscount ? sale : regular).toStringAsFixed(0)}",
                           style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            decoration: TextDecoration.lineThrough,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
-                    ],
+
+                        const SizedBox(width: 6),
+
+                        /// REGULAR PRICE (STRIKETHROUGH)
+                        if (hasDiscount)
+                          Flexible(
+                            child: Text(
+                              "₹${regular.toStringAsFixed(0)}",
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),

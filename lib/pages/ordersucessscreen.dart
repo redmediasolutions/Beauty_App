@@ -8,7 +8,6 @@ import 'package:lottie/lottie.dart';
 class SuccessSplashScreen extends StatefulWidget {
   final String? orderId;
 
-
   const SuccessSplashScreen({super.key, this.orderId});
 
   @override
@@ -29,7 +28,7 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-      print (widget.orderId);
+    print(widget.orderId);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -37,10 +36,10 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 🎉 Animation
             Lottie.network(
-              'https://assets9.lottiefiles.com/packages/lf20_jbrw3hcz.json', // working success animation
+              'https://assets9.lottiefiles.com/packages/lf20_jbrw3hcz.json',
               width: 220,
               height: 220,
               repeat: false,
@@ -64,9 +63,9 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
 
             const SizedBox(height: 24),
 
-            // ✅ Title
             Text(
               "Order Placed!",
+              textAlign: TextAlign.center,
               style: GoogleFonts.tenorSans(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -76,58 +75,69 @@ class _SuccessSplashScreenState extends State<SuccessSplashScreen> {
 
             const SizedBox(height: 12),
 
-            // ✅ Subtitle
             Text(
-              "Your skincare treats are on the way ✨",
+              "Your skincare treats are on the way",
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(fontSize: 15, color: Colors.black54),
             ),
 
-            // ✅ Order ID (optional)
             if (widget.orderId != null) ...[
               const SizedBox(height: 12),
               Text(
                 "Order ID: ${widget.orderId}",
+                textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 13, color: Colors.black45),
               ),
             ],
 
             const SizedBox(height: 40),
 
-            // ✅ Button (important UX)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
+            ElevatedButton(
+              onPressed: () {
+                if (widget.orderId != null) {
                   context.goNamed(
                     'orderDetail',
                     pathParameters: {'id': widget.orderId!},
                   );
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.black,
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Text(
-                  "Order Details",
-                  style: TextStyle(color: Colors.white),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
+              child: const Text(
+                "Order Details",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  context.go('/');
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  backgroundColor: Colors.black,
+
+            const SizedBox(height: 16),
+
+            ElevatedButton(
+              onPressed: () {
+                context.go('/');
+              },
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.black,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Text(
-                  "Continue Shopping",
-                  style: TextStyle(color: Colors.white),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+              child: const Text(
+                "Continue Shopping",
+                style: TextStyle(color: Colors.white),
               ),
             ),
           ],

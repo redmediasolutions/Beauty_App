@@ -27,7 +27,7 @@ class FloatingNavBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Row(
         children: [
-          /// 🔵 LEFT PILL (Home, Products, Search)
+          /// LEFT PILL (Home, Products, Search)
           Expanded(
             child: Container(
               height: 65,
@@ -72,11 +72,11 @@ class FloatingNavBar extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          /// 🛒 RIGHT PILL (Cart)
+          
           /// 🛒 RIGHT PILL (Cart - Always visible)
           GestureDetector(
             onTap: (){
-               HapticFeedback.lightImpact(); // 👈 haptic added
+               HapticFeedback.lightImpact(); 
                context.go('/cart');
 
             },
@@ -166,7 +166,7 @@ class FloatingNavBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
 
         onTap: () {
-          HapticFeedback.lightImpact(); // 👈 haptic added
+          HapticFeedback.lightImpact(); 
           context.go(route);
         },
 
