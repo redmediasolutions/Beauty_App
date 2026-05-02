@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:glowfit/models/categorymodel.dart';
 import 'package:glowfit/models/product_detail.dart';
 import 'package:glowfit/models/product_model.dart';
 import 'package:glowfit/models/singleorder.dart';
@@ -117,7 +118,7 @@ static Future<ProductDetail?> fetchSingleProductDetail(
       /// ✅ FILTER: ONLY CATEGORY 41
       final categories = json['categories'] as List?;
       final isAllowed = categories != null &&
-          categories.any((c) => c['id'] == 41);
+          categories.any((c) => c['id'] == 49);
 
       if (!isAllowed) return null; // ❌ BLOCK PRODUCT
 
@@ -323,4 +324,80 @@ static bool _isAllowedProduct(Map<String, dynamic> json) {
 }
 
 
+//======================= FETCH CATEGORIES BY IDS =======================
+static Future<List<CategoryModel>> fetchCategoriesByIds(
+  List<int> ids,
+) async {
+  if (ids.isEmpty) return [];
+
+  final queryParams = {
+    'include': ids.join(','),
+    'per_page': ids.length.toString(),
+    'hide_empty': 'true',
+  };
+
+  final queryString = Uri(queryParameters: queryParams).query;
+
+  final requestUrl =
+      "${Config.baseUrl}${Config.apiPath}products/categories?$queryString";
+
+  debugPrint('🌐 [API] Fetch Categories → $requestUrl');
+
+  try {
+    final response = await client.get(
+      Uri.parse(requestUrl),
+      headers: getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final List list = jsonDecode(response.body);
+
+      return list.map((e) => CategoryModel.fromJson(e)).toList();
+    } else {
+      debugPrint(
+        '❌ [API] Category fetch failed: ${response.statusCode}',
+      );
+    }
+  } catch (e) {
+    debugPrint('🚨 [API] fetchCategoriesByIds error: $e');
+  }
+
+  return [];
+}
+
+
+//======================= FETCH SUBCATEGORIES =======================
+static Future<List<CategoryModel>> fetchSubCategories(
+  int parentId,
+) async {
+  final queryParams = {
+    'parent': parentId.toString(),
+    'per_page': '50',
+    'hide_empty': 'true',
+  };
+
+  final queryString = Uri(queryParameters: queryParams).query;
+
+  final requestUrl =
+      "${Config.baseUrl}${Config.apiPath}products/categories?$queryString";
+
+  debugPrint('🌐 [API] Fetch Subcategories → $requestUrl');
+
+  try {
+    final response = await client.get(
+      Uri.parse(requestUrl),
+      headers: getHeaders(),
+    );
+
+    if (response.statusCode == 200) {
+      final List list = jsonDecode(response.body);
+
+      return list.map((e) => CategoryModel.fromJson(e)).toList();
+    }
+  } catch (e) {
+    debugPrint('🚨 [API] fetchSubCategories error: $e');
+  }
+
+  return [];
+}
 }

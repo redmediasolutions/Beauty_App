@@ -6,6 +6,277 @@ import { Request, Response } from "express";
 admin.initializeApp();
 
 // =======================================================
+// 🔐 MSG91 CONFIG (GLADSKIN)
+// =======================================================
+
+const MSG91_AUTH_KEY = "507198AvcFM6KC2X69f344baP1";
+const MSG91_WIDGET_ID = "3664446b584a343130353532";
+
+// =======================================================
+// 🔐 OTP - SEND
+// =======================================================
+
+
+export const sendGladskinOtp = onRequest(
+  { cors: true },
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      console.log("🔥 sendGladskinOtp triggered");
+
+      // 🔍 Method check
+      console.log("📡 Method:", req.method);
+
+      if (req.method !== "POST") {
+        console.log("❌ Invalid method");
+        res.status(405).json({ error: "Method not allowed" });
+        return;
+      }
+
+      // 📥 Incoming body
+      console.log("📥 Request body:", req.body);
+
+      const { phoneNumber } = req.body;
+
+      if (!phoneNumber) {
+        console.log("❌ Missing phone number");
+        res.status(400).json({ error: "Phone number required" });
+        return;
+      }
+
+      // 📱 Clean phone
+      let cleanPhone = phoneNumber.replace(/\D/g, "");
+      if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+      console.log("📱 Clean phone:", cleanPhone);
+
+      // 🚀 Calling MSG91
+      console.log("🚀 Sending request to MSG91...");
+
+      const response = await axios.post(
+        "https://api.msg91.com/api/v5/widget/sendOtp",
+        {
+          widgetId: MSG91_WIDGET_ID,
+          identifier: cleanPhone,
+        },
+        {
+          headers: {
+            authkey: MSG91_AUTH_KEY,
+          },
+        }
+      );
+
+      console.log("📨 MSG91 response:", response.data);
+
+      const reqId = response.data?.reqId || response.data?.message;
+
+      console.log("✅ OTP sent, reqId:", reqId);
+
+      res.json({
+        success: true,
+        reqId,
+      });
+      return;
+
+    } catch (error: any) {
+      console.error("🔥 ERROR in sendGladskinOtp:");
+      console.error("Message:", error?.message);
+      console.error("Response:", error?.response?.data);
+
+      res.status(500).json({ success: false });
+      return;
+    }
+  }
+);
+
+// =======================================================
+// 🔐 OTP - VERIFY
+// =======================================================
+
+// =======================================================
+// 🔐 VERIFY OTP
+// =======================================================
+
+export const verifyGladskinOtp = onRequest(
+  {
+    cors: true,
+    maxInstances: 10,
+    concurrency: 80,
+  },
+  async (req: Request, res: Response): Promise<void> => {
+    const { phoneNumber, otp, reqId } = req.body;
+
+    console.log("📥 Incoming Request:", { phoneNumber, otp, reqId });
+
+    // =========================
+    // ❌ VALIDATION
+    // =========================
+    if (!phoneNumber || !otp || !reqId) {
+      console.error("❌ Missing params");
+      res.status(400).json({
+        success: false,
+        message: "Missing phone / otp / reqId",
+      });
+      return;
+    }
+
+    // =========================
+    // 📱 FORMAT PHONE
+    // =========================
+    let cleanPhone = phoneNumber.replace(/\D/g, "");
+    if (cleanPhone.length === 10) {
+      cleanPhone = "91" + cleanPhone;
+    }
+
+    console.log("📱 Clean Phone:", cleanPhone);
+
+    try {
+      // =========================
+      // 🔥 VERIFY OTP (MSG91)
+      // =========================
+      console.log("🚀 Sending OTP verify request to MSG91...");
+
+      const msg91Response = await axios.post(
+        "https://api.msg91.com/api/v5/widget/verifyOtp",
+        {
+          widgetId: MSG91_WIDGET_ID,
+          mobile: cleanPhone,
+          otp: otp,
+          reqId: reqId,
+        },
+        {
+          headers: {
+            authkey: MSG91_AUTH_KEY,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const msg91Data = msg91Response.data;
+
+      console.log("📨 MSG91 VERIFY RESPONSE:", msg91Data);
+
+      // =========================
+      // ❌ OTP FAILED
+      // =========================
+      if (msg91Data.type !== "success") {
+        console.error("❌ OTP verification failed:", msg91Data);
+
+        res.status(400).json({
+          success: false,
+          message: msg91Data.message || "Invalid OTP",
+          debug: msg91Data,
+        });
+        return;
+      }
+
+      // =========================
+      // 🔥 FIREBASE USER HANDLING
+      // =========================
+      const db = admin.firestore();
+
+      let userRecord: admin.auth.UserRecord;
+      let isNewUser = false;
+
+      try {
+        console.log("🔍 Checking existing user...");
+        userRecord = await admin
+          .auth()
+          .getUserByPhoneNumber("+" + cleanPhone);
+
+        console.log("✅ Existing user found:", userRecord.uid);
+      } catch (e) {
+        console.log("🆕 User not found, creating new user...");
+
+        userRecord = await admin.auth().createUser({
+          phoneNumber: "+" + cleanPhone,
+        });
+
+        isNewUser = true;
+
+        console.log("✅ New user created:", userRecord.uid);
+      }
+
+      // =========================
+      // 🔥 ENSURE FIRESTORE DOC
+      // =========================
+      const userDocRef = db.collection("Users").doc(userRecord.uid);
+
+      console.log("📍 Checking user doc:", userDocRef.path);
+
+      const userDoc = await userDocRef.get();
+
+      if (!userDoc.exists) {
+        console.log("🆕 Creating new user document...");
+
+        await userDocRef.set(
+          {
+            uid: userRecord.uid,
+            phone_number: "+" + cleanPhone,
+            display_name: "",
+            email: "",
+            isUserProfileComplete: false,
+
+            created_time: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+
+            referralCode: null,
+            referredBy: null,
+            referredByPhone: null,
+            referredByUserId: null,
+            referralUpdatedAt: null,
+
+            walletBalance: 0,
+            walletTotalEarned: 0,
+            walletTotalUsed: 0,
+            rewardPoints: 0,
+
+            fcmToken: null,
+            lastSelectedAddress: null,
+          },
+          { merge: true }
+        );
+      } else {
+        await userDocRef.update({
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        console.log("✅ Existing user updated");
+      }
+
+      // =========================
+      // 🔐 CREATE TOKEN
+      // =========================
+      console.log("🔐 Creating custom token...");
+
+      const customToken = await admin
+        .auth()
+        .createCustomToken(userRecord.uid);
+
+      console.log("✅ Token created, sending response");
+
+      res.json({
+        success: true,
+        token: customToken,
+        isNewUser: isNewUser,
+      });
+      return;
+    } catch (error: any) {
+      const errMsg =
+        (error.response && error.response.data) || error.message;
+
+      console.error("🔥 VERIFY OTP ERROR:", errMsg);
+
+      res.status(500).json({
+        success: false,
+        error: "Internal Server Error",
+        details: errMsg,
+      });
+      return;
+    }
+  }
+);
+
+// =======================================================
 // 🔐 CONFIG
 // =======================================================
 

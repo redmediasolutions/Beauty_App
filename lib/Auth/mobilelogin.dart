@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:pinput/pinput.dart';
 
 class MobileLogin extends StatefulWidget {
@@ -20,11 +22,13 @@ class _MobileLoginState extends State<MobileLogin> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  String _verificationId = "";
   bool _isOtpSent = false;
   bool _isLoading = false;
   final Color primaryColor = const Color(0xFF6366F1); // Modern Indigo
   final Color secondaryColor = const Color(0xFFF1F5F9); // Light Slate
+  String _reqId = "";
+  final String baseUrl = "https://us-central1-glowfit-4dfe8.cloudfunctions.net";
+  bool _isButtonLocked = false;
 
   @override
   void dispose() {
@@ -32,6 +36,27 @@ class _MobileLoginState extends State<MobileLogin> {
     _otpController.dispose();
     super.dispose();
   }
+
+  Future<void> _handleButtonPress() async {
+  if (_isLoading || _isButtonLocked) return;
+
+  setState(() => _isButtonLocked = true);
+
+  try {
+    if (_isOtpSent) {
+      await _verifyOtp();
+    } else {
+      await _sendOtp();
+    }
+  } finally {
+    // Small delay to prevent rapid spam taps
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (mounted) {
+      setState(() => _isButtonLocked = false);
+    }
+  }
+}
 
   //================================ SAVE USER TO FIRESTORE WITH TIMEOUT ================================
   Future<void> _saveUserToFirestore(User user) async {
@@ -61,159 +86,188 @@ class _MobileLoginState extends State<MobileLogin> {
   }
 
   //===============================OTP SENDING LOGIC - FIXED FOR iOS ===============================
-  Future<void> _sendOtp() async {
-    if (!mounted) return;
+ Future<void> _sendOtp() async {
+  if (!mounted) return;
 
-    final phone = _phoneController.text.trim();
+  final phone =
+      _phoneController.text.replaceAll(RegExp(r'\D'), '');
 
-    if (phone.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter a valid mobile number")),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    final String fullPhoneNumber = "+91$phone";
-
-    try {
-      await _auth.verifyPhoneNumber(
-        phoneNumber: fullPhoneNumber,
-
-        /// AUTO VERIFICATION (ANDROID)
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          try {
-            final userCredential = await _auth.signInWithCredential(credential);
-
-            final user = userCredential.user;
-
-            if (user != null) {
-              await _saveUserToFirestore(user);
-            }
-
-            // DO NOT NAVIGATE HERE
-            // GoRouter will handle redirect
-          } catch (e) {
-            debugPrint("Auto-verification error: $e");
-          }
-        },
-
-        /// FAILED
-        verificationFailed: (FirebaseAuthException e) {
-          if (!mounted) return;
-
-          String message = e.message ?? "Verification failed";
-
-          if (e.code == 'invalid-phone-number') {
-            message = "Invalid phone number";
-          }
-
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
-
-          setState(() => _isLoading = false);
-        },
-
-        /// OTP SENT
-        codeSent: (String verificationId, int? resendToken) {
-          if (!mounted) return;
-
-          setState(() {
-            _verificationId = verificationId;
-            _isOtpSent = true;
-            _isLoading = false;
-          });
-        },
-
-        /// AUTO TIMEOUT
-        codeAutoRetrievalTimeout: (String verificationId) {
-          _verificationId = verificationId;
-        },
-
-        timeout: const Duration(seconds: 120),
-      );
-    } catch (e) {
-      debugPrint("Error sending OTP: $e");
-
-      if (!mounted) return;
-
-      setState(() => _isLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to send OTP. Try again.")),
-      );
-    }
+  if (phone.length < 10) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Enter a valid mobile number")),
+    );
+    return;
   }
+
+  setState(() => _isLoading = true);
+
+  try {
+    debugPrint("📤 Sending OTP to: $phone");
+
+    final response = await http
+        .post(
+          Uri.parse("$baseUrl/sendGladskinOtp"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "phoneNumber": phone,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    debugPrint("📨 Response Status: ${response.statusCode}");
+    debugPrint("📨 Response Body: ${response.body}");
+
+    if (response.statusCode != 200) {
+      throw Exception("Server error (${response.statusCode})");
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data["success"] != true) {
+      throw Exception(data["message"] ?? "OTP failed");
+    }
+
+    setState(() {
+      _isOtpSent = true;
+      _reqId = data["reqId"] ?? "";
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("OTP sent successfully")),
+    );
+  } catch (e) {
+    debugPrint("❌ SEND OTP ERROR: $e");
+
+    String message = "Failed to send OTP";
+
+    if (e.toString().contains("SocketException")) {
+      message = "No internet connection";
+    } else if (e.toString().contains("TimeoutException")) {
+      message = "Request timed out. Try again";
+    } else if (e.toString().contains("Server error")) {
+      message = "Server error. Try again later";
+    } else if (e.toString().contains("OTP failed")) {
+      message = "Failed to send OTP";
+    } else {
+      message = e.toString().replaceAll("Exception: ", "");
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
 
   //===============================OTP VERIFICATION LOGIC - FIXED FOR iOS ===============================
   Future<void> _verifyOtp() async {
-    if (!mounted) return;
+  if (!mounted) return;
 
-    final otp = _otpController.text.trim();
+  final otp = _otpController.text.trim();
+  final phone =
+      _phoneController.text.replaceAll(RegExp(r'\D'), '');
 
-    if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Enter a valid 6-digit OTP")),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId,
-        smsCode: otp,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-
-      final user = userCredential.user;
-
-      if (user != null) {
-        await _saveUserToFirestore(user);
-      }
-
-      // IMPORTANT:
-      // DO NOT navigate here
-      // GoRouter will automatically redirect once auth state updates
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-
-      String errorMsg = "Invalid OTP. Try again.";
-
-      switch (e.code) {
-        case 'invalid-verification-code':
-          errorMsg = "The code you entered is incorrect.";
-          break;
-        case 'session-expired':
-          errorMsg = "OTP expired. Please request a new one.";
-          break;
-        case 'too-many-requests':
-          errorMsg = "Too many attempts. Try again later.";
-          break;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMsg)));
-    } catch (e) {
-      debugPrint("OTP verification error: $e");
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Verification failed. Try again.")),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+  if (otp.length != 4) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Enter 4-digit OTP")),
+    );
+    return;
   }
 
+  if (_reqId.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Session expired. Request OTP again")),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    debugPrint("🔐 Verifying OTP for: $phone");
+    debugPrint("📨 OTP: $otp | reqId: $_reqId");
+
+    final response = await http
+        .post(
+          Uri.parse("$baseUrl/verifyGladskinOtp"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "phoneNumber": phone,
+            "otp": otp,
+            "reqId": _reqId,
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    debugPrint("📨 Response Status: ${response.statusCode}");
+    debugPrint("📨 Response Body: ${response.body}");
+
+    if (response.statusCode != 200) {
+      throw Exception("Server error (${response.statusCode})");
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data["success"] != true) {
+      throw Exception(data["message"] ?? "Invalid OTP");
+    }
+
+    final token = data["token"];
+
+    if (token == null || token.isEmpty) {
+      throw Exception("Authentication token missing");
+    }
+
+    // 🔐 Firebase Custom Token Login
+    final userCredential =
+        await FirebaseAuth.instance.signInWithCustomToken(token);
+
+    final user = userCredential.user;
+
+    if (user != null) {
+      await _saveUserToFirestore(user);
+    }
+
+    debugPrint("✅ Login successful: ${user?.uid}");
+
+    // Optional success feedback (you can remove if using redirect only)
+    if (!mounted) return;
+
+ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(content: Text("Login successful")),
+);
+
+  } catch (e) {
+    debugPrint("❌ VERIFY OTP ERROR: $e");
+
+    String message = "OTP verification failed";
+
+    if (e.toString().contains("SocketException")) {
+      message = "No internet connection";
+    } else if (e.toString().contains("TimeoutException")) {
+      message = "Request timed out. Try again";
+    } else if (e.toString().contains("Server error")) {
+      message = "Server error. Try again later";
+    } else if (e.toString().contains("Invalid OTP")) {
+      message = "Incorrect OTP. Please try again";
+    } else if (e.toString().contains("expired")) {
+      message = "OTP expired. Request a new one";
+    } else {
+      message = e.toString().replaceAll("Exception: ", "");
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
   Future<void> _handleGuestLogin() async {
     if (!mounted) return;
 
@@ -402,7 +456,7 @@ class _MobileLoginState extends State<MobileLogin> {
                                       );
                                     },
                                     child: Pinput(
-                                      length: 6,
+                                      length: 4,
                                       controller: _otpController,
                                       onCompleted: (pin) => _verifyOtp(),
                                     ),
@@ -430,9 +484,15 @@ class _MobileLoginState extends State<MobileLogin> {
                                     width: double.infinity,
                                     height: 58,
                                     child: ElevatedButton(
-                                      onPressed: _isOtpSent
-                                          ? _verifyOtp
-                                          : _sendOtp,
+                                      onPressed: _isLoading
+    ? null
+    : () {
+        if (_isOtpSent) {
+          _verifyOtp();
+        } else {
+          _sendOtp();
+        }
+      },
                                       style: ElevatedButton.styleFrom(
                                         padding: EdgeInsets.zero,
                                         shape: RoundedRectangleBorder(
