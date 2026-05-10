@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glowfit/pages/orderspage/orderdetails.dart';
 import 'package:glowfit/pages/orderspage/orderfailed.dart';
+import 'package:glowfit/pages/orderspage/processingpage.dart';
 import 'package:glowfit/pages/ordersucessscreen.dart';
 import 'package:glowfit/pages/profile/orderlist.dart';
 import 'package:go_router/go_router.dart';
@@ -104,6 +105,15 @@ GoRoute(
     final msg = state.extra as String?;
     return OrderFailedScreen(message: msg);
   },
+),
+GoRoute(
+
+  path: '/processingpayment',
+
+  builder: (context, state) =>
+
+      const ProcessingPaymentPage(),
+
 ),
 
 GoRoute(

@@ -21,6 +21,7 @@ class _CartPageState extends State<CartPage> {
   String _selectedPayment = "cod";
   late Razorpay _razorpay;
   Map<String, dynamic>? _selectedAddress;
+  String? _razorpayKey;
 
   bool _isProcessing = false;
 
@@ -37,15 +38,25 @@ class _CartPageState extends State<CartPage> {
 
     _razorpay = Razorpay();
 
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (
-      PaymentSuccessResponse response,
-    ) async {
-      await _finalizeOrder(
-        response.orderId,
-        response.paymentId,
-        response.signature,
-      );
-    });
+    _razorpay.on(
+  Razorpay.EVENT_PAYMENT_SUCCESS,
+  (PaymentSuccessResponse response) async {
+
+    // 🔥 CLOSE ANY BOTTOM SHEET
+    _hideProcessingSheet();
+
+    // 🔥 GO TO PROCESSING PAGE
+    if (mounted) {
+      context.push('/processingpayment');
+    }
+
+    await _finalizeOrder(
+      response.orderId,
+      response.paymentId,
+      response.signature,
+    );
+  },
+);
 
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (
       PaymentFailureResponse response,
@@ -57,10 +68,11 @@ class _CartPageState extends State<CartPage> {
   }
 
   @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  _razorpay.clear();
+  _scrollController.dispose();
+  super.dispose();
+}
 
   Future<void> _fetchRates() async {
     try {
@@ -77,138 +89,281 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<void> _startCheckout() async {
-    if (!mounted) return;
+  if (!mounted) return;
 
-    if (_selectedAddress == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please select an address")));
-      return;
-    }
+  // =======================================================
+  // 📍 ADDRESS VALIDATION
+  // =======================================================
 
-    /// ✅ AUTH CHECK (CRITICAL FIX)
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please login to continue")));
-      return;
-    }
+  if (_selectedAddress == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please select an address"),
+      ),
+    );
+    return;
+  }
 
-    /// 🔥 Ensure token is ready (VERY IMPORTANT)
+  // =======================================================
+  // 🔐 AUTH VALIDATION
+  // =======================================================
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please login to continue"),
+      ),
+    );
+    return;
+  }
+
+  try {
+    setState(() => _isProcessing = true);
+
+    _showProcessingSheet();
+
+    // 🔥 FORCE TOKEN REFRESH
     await user.getIdToken(true);
 
-    _showProcessingSheet(); // 🔥 SHOW LOADER
+    // =======================================================
+    // 🛒 CREATE SECURE ORDER
+    // =======================================================
 
-    try {
-      final result = await FirebaseFunctions.instance
-          .httpsCallable('createSecureOrder')
-          .call({'paymentMethod': _selectedPayment, 'useWallet': false});
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('createSecureOrder')
+        .call({
+          'paymentMethod': _selectedPayment,
 
-      final data = Map<String, dynamic>.from(result.data);
+          // 🔥 IMPORTANT
+          'useWallet': _usePoints,
+        });
 
-      final double payable = (data['finalPayable'] ?? 0).toDouble();
-      _razorpayOrderId = data['razorpayOrderId'];
+    final data = Map<String, dynamic>.from(result.data);
 
-      /// ✅ COD / FREE ORDER FLOW
-      if (_selectedPayment == "cod" || payable <= 0) {
-        _hideProcessingSheet(); // 🔥 FIX: close before finalize
-        await _finalizeOrder(null, null, null);
-        return;
-      }
+    debugPrint("🧾 Checkout Response: $data");
 
-      /// ✅ ONLINE PAYMENT FLOW
-      _hideProcessingSheet(); // 🔥 CLOSE before Razorpay
-      _openRazorpay(payable);
-    } on FirebaseFunctionsException catch (e) {
+    final double payable =
+        (data['finalPayable'] ?? 0)
+            .toDouble();
+
+    // 🔥 Razorpay Data
+    _razorpayOrderId =
+        data['razorpayOrderId'];
+
+    _razorpayKey =
+        data['razorpayKey'];
+
+    // =======================================================
+    // ✅ COD / FREE ORDER
+    // =======================================================
+
+    if (
+        _selectedPayment == "cod" ||
+        payable <= 0
+    ) {
+
       _hideProcessingSheet();
 
-      debugPrint("Checkout error: ${e.code} - ${e.message}");
+      await _finalizeOrder(
+        null,
+        null,
+        null,
+      );
 
-      if (!mounted) return;
+      return;
+    }
 
-      String message = "Something went wrong";
+    // =======================================================
+    // 💳 ONLINE PAYMENT
+    // =======================================================
 
-      if (e.code == "unauthenticated") {
-        message = "Session expired. Please login again.";
-      } else if (e.code == "invalid-argument") {
-        message = e.message ?? "Invalid request";
-      }
+    _hideProcessingSheet();
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      _hideProcessingSheet();
-      debugPrint("Checkout error: $e");
+    _openRazorpay(payable);
 
-      if (!mounted) return;
+  } on FirebaseFunctionsException catch (e) {
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Checkout failed. Try again.")),
+    _hideProcessingSheet();
+
+    debugPrint(
+      "🔥 FirebaseFunctionsException:"
+    );
+
+    debugPrint("Code: ${e.code}");
+    debugPrint("Message: ${e.message}");
+    debugPrint("Details: ${e.details}");
+
+    if (!mounted) return;
+
+    String message =
+        "Something went wrong";
+
+    switch (e.code) {
+
+      case "unauthenticated":
+        message =
+            "Session expired. Please login again.";
+        break;
+
+      case "invalid-argument":
+        message =
+            e.message ??
+            "Invalid request";
+        break;
+
+      case "internal":
+        message =
+            "Server error. Please try again.";
+        break;
+
+      default:
+        message =
+            e.message ??
+            "Checkout failed";
+    }
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+
+  } catch (e, stack) {
+
+    _hideProcessingSheet();
+
+    debugPrint(
+      "🔥 Checkout Error: $e",
+    );
+
+    debugPrint(
+      "🔥 Stacktrace: $stack",
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Checkout failed. Please try again.",
+        ),
+      ),
+    );
+
+  } finally {
+
+    if (mounted) {
+      setState(
+        () => _isProcessing = false,
       );
     }
   }
+}
 
-  void _openRazorpay(double amount) {
-    final options = {
-      'key': 'rzp_live_xxxxx', // 🔥 replace
-      'amount': (amount * 100).toInt(),
-      'currency': 'INR',
-      'order_id': _razorpayOrderId,
-      'name': 'Gladskin',
-    };
+void _openRazorpay(double amount) {
+  final user = FirebaseAuth.instance.currentUser;
 
-    _razorpay.open(options);
-  }
+  final options = {
+    'key': _razorpayKey,
+
+    'amount': (amount * 100).toInt(),
+
+    'currency': 'INR',
+
+    'order_id': _razorpayOrderId,
+
+    'name': 'Gladskin',
+
+    'description': 'Order Payment',
+
+    'prefill': {
+      'contact': _selectedAddress?['phone'],
+      'email': user?.email ?? '',
+    },
+
+    'theme': {
+      'color': '#6F0562',
+    },
+  };
+
+  _razorpay.open(options);
+}
 
   Future<void> _finalizeOrder(
-    String? orderId,
-    String? paymentId,
-    String? signature,
-  ) async {
-    try {
-      final result = await FirebaseFunctions.instance
-          .httpsCallable('finalizeOrder')
-          .call({
-            'razorpayOrderId': orderId,
-            'razorpayPaymentId': paymentId,
-            'razorpaySignature': signature,
-            'billing': {
-              'first_name': _selectedAddress!['name'],
-              'phone': _selectedAddress!['phone'],
-              'address_1': _selectedAddress!['address'],
-              'city': _selectedAddress!['city'],
-              'state': _selectedAddress!['state'],
-              'postcode': _selectedAddress!['pincode'],
-              'country': 'IN',
-            },
-            'shipping': {
-              'first_name': _selectedAddress!['name'],
-              'phone': _selectedAddress!['phone'],
-              'address_1': _selectedAddress!['address'],
-              'city': _selectedAddress!['city'],
-              'state': _selectedAddress!['state'],
-              'postcode': _selectedAddress!['pincode'],
-              'country': 'IN',
-            },
-          });
+  String? orderId,
+  String? paymentId,
+  String? signature,
+) async {
 
-      final data = Map<String, dynamic>.from(result.data);
+  try {
 
-      final String wooOrderId = data['orderId'].toString(); // ✅ THIS IS KEY
+    final result = await FirebaseFunctions.instance
+        .httpsCallable('finalizeOrder')
+        .call({
 
-      debugPrint("✅ Woo Order ID: $wooOrderId");
+      'razorpayOrderId': orderId,
+      'razorpayPaymentId': paymentId,
+      'razorpaySignature': signature,
 
-      context.go('/ordersuccess', extra: wooOrderId); // ✅ PASS CORRECT ID
-    } catch (e) {
-      debugPrint("Finalize error: $e");
+      'useWallet': _usePoints,
 
-      if (mounted) {
-        context.go('/orderfailed', extra: "Failed to place order");
-      }
-    }
+      'billing': {
+        'first_name': _selectedAddress!['name'],
+        'phone': _selectedAddress!['phone'],
+        'address_1': _selectedAddress!['address'],
+        'city': _selectedAddress!['city'],
+        'state': _selectedAddress!['state'],
+        'postcode': _selectedAddress!['pincode'],
+        'country': 'IN',
+      },
+
+      'shipping': {
+        'first_name': _selectedAddress!['name'],
+        'phone': _selectedAddress!['phone'],
+        'address_1': _selectedAddress!['address'],
+        'city': _selectedAddress!['city'],
+        'state': _selectedAddress!['state'],
+        'postcode': _selectedAddress!['pincode'],
+        'country': 'IN',
+      },
+    });
+
+    final data =
+        Map<String, dynamic>.from(
+      result.data,
+    );
+
+    final String wooOrderId =
+        data['orderId'].toString();
+
+    debugPrint(
+      "✅ Woo Order ID: $wooOrderId",
+    );
+
+    if (!mounted) return;
+
+    // 🔥 REPLACE PROCESSING PAGE
+    context.go(
+      '/ordersuccess',
+      extra: wooOrderId,
+    );
+
+  } catch (e) {
+
+    debugPrint(
+      "❌ Finalize error: $e",
+    );
+
+    if (!mounted) return;
+
+    context.go(
+      '/orderfailed',
+      extra: "Failed to place order",
+    );
   }
+}
 
   void _calculateTotals(List docs) {
     double subtotal = 0;
@@ -849,7 +1004,7 @@ class _CartPageState extends State<CartPage> {
         ),
         const SizedBox(height: 12),
 
-        //_paymentTile("online", "Pay Now", Icons.credit_card),
+        _paymentTile("online", "Pay Now", Icons.credit_card),
         const SizedBox(height: 10),
         _paymentTile("cod", "Cash on Delivery", Icons.money),
       ],
@@ -1202,7 +1357,7 @@ class _CartPageState extends State<CartPage> {
   void _showProcessingSheet() {
     showModalBottomSheet(
       context: context,
-      isDismissible: true,
+      isDismissible: false,
       enableDrag: false,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
