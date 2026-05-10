@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:glowfit/pages/cart/cart_Page.dart';
+import 'package:go_router/go_router.dart';
 
 class PrimaryHeader extends StatelessWidget {
   final Widget body;
@@ -22,60 +23,20 @@ class PrimaryHeader extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        title: SvgPicture.asset(
-          'assets/images/app-header.svg',
-          height: 24,
-        ),
+        title: SvgPicture.asset('assets/images/app-header.svg', height: 24),
         actions: [
+          /// 👤 PROFILE BUTTON
           Padding(
-            padding: const EdgeInsets.only(right: 15),
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('carts')
-                  .doc(FirebaseAuth.instance.currentUser?.uid)
-                  .collection('items')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                int totalItems = 0;
-                
-               if (snapshot.hasData) {
-  for (var doc in snapshot.data!.docs) {
-    // 1. Cast the document data safely
-    final data = doc.data() as Map<String, dynamic>;
-    
-    // 2. Access 'quantity', default to 0 if null, and force to int
-    final int itemQty = (data['quantity'] ?? 0).toInt();
-    
-    // 3. Add to your total
-    totalItems += itemQty;
-  }
-}
-                return IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const CartPage()),
-                    );
-                  },
-                  icon: Badge(
-                    backgroundColor: const Color(0xFF8A206E),
-                    isLabelVisible: totalItems > 0,
-                    label: Text(
-                      '$totalItems',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.shopping_bag_outlined,
-                      color: Colors.black,
-                      size: 26,
-                    ),
-                  ),
-                );
+            padding: const EdgeInsets.only(right: 5),
+            child: IconButton(
+              onPressed: () {
+                context.go('/profile'); // using go_router (recommended)
               },
+              icon: const Icon(
+                Icons.person_outline,
+                color: Colors.black,
+                size: 26,
+              ),
             ),
           ),
         ],

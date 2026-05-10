@@ -3,25 +3,28 @@ import 'package:glowfit/components/Floating_Navbar.dart';
 
 class ShellPage extends StatelessWidget {
   final Widget child;
+  final int cartCount; // 👈 add this
 
-  const ShellPage({super.key, required this.child});
+  const ShellPage({
+    super.key,
+    required this.child,
+    required this.cartCount, // 👈 required
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Ensure the background color matches the design
-      backgroundColor: const Color(0xFFFEF7E7),
+      backgroundColor: const Color(0xFFFCF9F9), // match your app theme
       body: Stack(
         children: [
-          // 1. The actual page content (Home, Shop, etc.)
-          Positioned.fill(
-            child: child,
-          ),
+          /// 🌿 Page Content
+          Positioned.fill(child: child),
 
-          // 2. The NavBar positioned at the bottom
-          const Align(
+          /// 🛒 Floating Navbar
+          Align(
             alignment: Alignment.bottomCenter,
-            child: FloatingNavBar(),
+            child: FloatingNavBar(
+              cartCount: 2,)
           ),
         ],
       ),

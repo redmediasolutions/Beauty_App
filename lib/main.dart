@@ -1,16 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:glowfit/firebase_options.dart';
-import 'package:glowfit/navbar.dart';
+import 'package:glowfit/services/gorouter.dart';
+import 'package:glowfit/services/remoteconfig.dart';
 
 void main() async {
-  // 1. This must be the first line
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // 2. This starts the "engine" for your database/auth
+
+  // ✅ FIRST initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ✅ THEN use Remote Config
+  await RemoteConfigService.init();
 
   runApp(const MainApp());
 }
@@ -23,7 +26,7 @@ class MainApp extends StatelessWidget {
     return MaterialApp.router(
    routerConfig: AppRouter.router,
       debugShowCheckedModeBanner: false,
-      title: 'Gladskin',
+      title: 'Glad Skin',
       theme: ThemeData()
     );
   }

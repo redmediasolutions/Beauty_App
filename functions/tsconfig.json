@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "rootDir": "./src",        // ✅ MUST be explicit with ./
+    "outDir": "./lib",
+
+    "esModuleInterop": true,
+    "strict": true,
+
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+
+    "skipLibCheck": true,      // ✅ avoids node_modules errors
+    "forceConsistentCasingInFileNames": true,
+
+    "sourceMap": true
+  },
+
+  "include": ["src/**/*.ts"],   // ✅ more explicit
+  "exclude": ["node_modules"]
+}

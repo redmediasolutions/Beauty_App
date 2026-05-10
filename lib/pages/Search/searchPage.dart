@@ -5,7 +5,6 @@ import 'package:glowfit/services/api.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
 
-
 class Searchpage extends StatefulWidget {
   const Searchpage({super.key});
 
@@ -14,85 +13,91 @@ class Searchpage extends StatefulWidget {
 }
 
 class _SearchpageState extends State<Searchpage> {
-  late Future<List<Productsmodel>> _productsFuture;
-  int? _selectedCategoryId;
+  final List<Productsmodel> _products = [];
+
+  bool _isLoading = false;
+  bool _hasSearched = false;
   int _resultCount = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchFilteredProducts(); 
-  }
-
-  //=====================FILTER & SEARCH LOGIC=====================//
-  void _fetchFilteredProducts({int? categoryId}) {
-    setState(() {
-      _selectedCategoryId = categoryId;
-      _productsFuture = APIService.fetchProducts(categoryId: _selectedCategoryId).then((list) {
-        setState(() => _resultCount = list.length);
-        return list;
-      });
-    });
-  }
-
-// ======================= HANDELS CUSTOM SEARCH QUERIES ====================== //
-  void _performSearch(String query) {
+  // 🔍 SEARCH FUNCTION
+  Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
-      _fetchFilteredProducts(categoryId: _selectedCategoryId);
+      setState(() {
+        _products.clear();
+        _hasSearched = false;
+        _resultCount = 0;
+      });
       return;
     }
 
-   setState(() {
-  _productsFuture = APIService().searchProducts(query).then((list) {
-    _resultCount = list.length;
-    return list;
-  });
-});
+    setState(() {
+      _isLoading = true;
+      _hasSearched = true;
+    });
+
+    try {
+      final results = await APIService().searchProducts(query);
+
+      setState(() {
+        _products
+          ..clear()
+          ..addAll(results);
+
+        _resultCount = results.length;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Search error: $e");
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                child: Text(
-                  'Search',
-                  style: GoogleFonts.inter(fontSize: 48, fontWeight: FontWeight.w600),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+
+            // 🔹 TITLE
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: Text(
+                'Search',
+                style: GoogleFonts.inter(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 30),
-              // SEARCH FIELD
-              
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25.0),
-                child: TextField(
-                  onChanged: _performSearch,
-                  decoration: InputDecoration(
-                    hintText: "Search name, salt, or brand...",
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+
+            const SizedBox(height: 30),
+
+            // 🔹 SEARCH FIELD
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25),
+              child: TextField(
+                onChanged: _performSearch,
+                decoration: InputDecoration(
+                  hintText: "Search products...",
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),
-              const SizedBox(height: 35),
-              // CATEGORY CHIPS
-              // ActionChoiceExample(
-              //   onCategorySelected: (id) => _fetchFilteredProducts(categoryId: id),
-              // ),
+            ),
 
-           
-          
-            //=====================ITEM COUNT=====================//
+            const SizedBox(height: 25),
+
+            // 🔹 RESULTS COUNT
+            if (_hasSearched)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 25.0),
+                padding: const EdgeInsets.symmetric(horizontal: 25),
                 child: Text(
                   "$_resultCount RESULTS",
                   style: GoogleFonts.inter(
@@ -104,38 +109,58 @@ class _SearchpageState extends State<Searchpage> {
                 ),
               ),
 
-            //===================== PRODUCT GRID ====================//
-              FutureBuilder<List<Productsmodel>>(
-                future: _productsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: Padding(padding: EdgeInsets.all(50), child: CircularProgressIndicator()));
-                  }
-                  if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(child: Padding(padding: EdgeInsets.all(50), child: Text("No products found")));
+            const SizedBox(height: 10),
+
+            // 🔥 MAIN CONTENT
+            Expanded(
+              child: Builder(
+                builder: (_) {
+                  // 🟡 INITIAL STATE (NO SEARCH YET)
+                  if (!_hasSearched) {
+                    return const Center(
+                      child: Text("Start typing to search"),
+                    );
                   }
 
-                  final products = snapshot.data!;
+                  // 🔄 LOADING
+                  if (_isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  // ❌ NO RESULTS
+                  if (_products.isEmpty) {
+                    return const Center(
+                      child: Text("No products found"),
+                    );
+                  }
+
+                  // ✅ RESULTS GRID
                   return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    itemCount: products.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 25,
+                      vertical: 20,
+                    ),
+                    itemCount: _products.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       mainAxisSpacing: 20,
                       crossAxisSpacing: 15,
                       childAspectRatio: 0.7,
                     ),
                     itemBuilder: (context, index) {
-                      final p = products[index];
+                      final p = _products[index];
+
                       return GestureDetector(
-                        onTap: () => context.push('/productview', extra: p),
+                        onTap: () {
+                          context.push('/product/${p.id}');
+                        },
                         child: ProductsList(
                           id: p.id.toString(),
                           name: p.name,
                           imageUrl: p.image,
-                          regularPrice: p.regularPrice,
                           product: p,
                           onAddToCart: () {},
                         ),
@@ -144,8 +169,8 @@ class _SearchpageState extends State<Searchpage> {
                   );
                 },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

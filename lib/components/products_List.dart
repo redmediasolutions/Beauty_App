@@ -6,9 +6,7 @@ class ProductsList extends StatefulWidget {
   final String? id;
   final String? imageUrl;
   final String name;
-  final double? regularPrice;
   final VoidCallback? onAddToCart;
-  
   final Productsmodel product;
 
   const ProductsList({
@@ -16,9 +14,8 @@ class ProductsList extends StatefulWidget {
     this.id,
     this.imageUrl,
     required this.name,
-    this.regularPrice,
     this.onAddToCart,
-   required this.product,
+    required this.product,
   });
 
   @override
@@ -28,8 +25,19 @@ class ProductsList extends StatefulWidget {
 class _ProductsListState extends State<ProductsList> {
   @override
   Widget build(BuildContext context) {
+    final double regular =
+        double.tryParse(widget.product.regularPrice?.toString() ?? '') ?? 0;
+
+    final double sale =
+        double.tryParse(widget.product.salePrice?.toString() ?? '') ?? 0;
+
+    final bool hasDiscount = sale > 0 && sale < regular;
+
+    final int discountPercent = hasDiscount
+        ? (((regular - sale) / regular) * 100).round()
+        : 0;
+
     return Container(
-      // Only one decoration for the entire card
       decoration: BoxDecoration(
         color: const Color(0xFFF9F9F9),
         borderRadius: BorderRadius.circular(20),
@@ -37,37 +45,69 @@ class _ProductsListState extends State<ProductsList> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Image Area
+          // ================= IMAGE =================
           Expanded(
             flex: 6,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: widget.imageUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Image.network(
-                          widget.imageUrl!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
+            child: Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: widget.imageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(15),
+                          child: Image.network(
+                            widget.imageUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                          ),
                         ),
-                      )
-                    : const Icon(Icons.image_not_supported, color: Colors.grey),
-              ),
+                ),
+
+                /// 🔥 DISCOUNT BADGE
+                if (hasDiscount)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "$discountPercent% OFF",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
 
-          // 2. Info Area (No second Container/Stack)
+          // ================= INFO =================
           Expanded(
             flex: 4,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment:
-                    MainAxisAlignment.center, // Centers text vertically
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
+                  /// PRODUCT NAME
                   Text(
                     widget.name.toUpperCase(),
                     maxLines: 2,
@@ -79,20 +119,38 @@ class _ProductsListState extends State<ProductsList> {
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "₹${widget.regularPrice?.toStringAsFixed(0) ?? '--'}",
-                        style: GoogleFonts.inter(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
+
+                  ///  PRICE SECTION
+                  Flexible(
+                    child: Row(
+                      children: [
+                        /// SALE / FINAL PRICE
+                        Text(
+                          "₹${(hasDiscount ? sale : regular).toStringAsFixed(0)}",
+                          style: GoogleFonts.inter(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
+                          ),
                         ),
-                      ),
-          
-                    ],
+
+                        const SizedBox(width: 6),
+
+                        /// REGULAR PRICE (STRIKETHROUGH)
+                        if (hasDiscount)
+                          Flexible(
+                            child: Text(
+                              "₹${regular.toStringAsFixed(0)}",
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: Colors.grey,
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),

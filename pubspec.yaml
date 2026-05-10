@@ -1,7 +1,7 @@
 name: glowfit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0+2
+version: 0.1.0+7
 
 environment:
   sdk: ^3.11.0
@@ -23,7 +23,10 @@ dependencies:
   carousel_slider: ^5.1.2
   pinput: ^6.0.2
   intl: ^0.20.2
-  flutter_launcher_icons: ^0.14.4
+  cloud_functions: ^6.1.0
+  razorpay_flutter: ^1.4.4
+  styled_divider: ^1.0.5
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -31,13 +34,15 @@ dev_dependencies:
     
   flutter_lints: ^6.0.0
   change_app_package_name: ^1.5.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/app-header.svg
-    - assets/images/logo/
-
+    - assets/images/gladskin.png
+    - assets/images/splashscreen/onlylogo.svg
+    - assets/images/splashscreen/onlytext.svg
   fonts:
     - family: Manrope
       fonts:
@@ -64,9 +69,8 @@ flutter:
         - asset: assets/fonts/TenorSans-Regular.ttf
 
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
-  image_path: "assets/images/logo/app_logo.png"
-  remove_alpha_ios: true
-  adaptive_icon_background: "#8c277b" # Change this to your brand's background color
-  adaptive_icon_foreground: "assets/images/logo/app_logo.png"
+  image_path: "assets/images/app_logo.png"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/images/gladskin.png"

@@ -21,20 +21,49 @@ class HomeFeaturedProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/productview', extra: product),
+      onTap: () => context.push('/product/${product.id}'),
       child: SizedBox(
         width: 210,
+        height: 300,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
+            SizedBox(
+              height: 220,
               child: Container(
                 decoration: BoxDecoration(
                   color: accentColor,
                   borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Stack(
                   children: [
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            product.image ??
+                                "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
+                        ),
+                      ),
+                    ),
                     Positioned(
                       top: 12,
                       right: 12,
@@ -46,6 +75,13 @@ class HomeFeaturedProductCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFFD7F0A2),
                           borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Text(
                           "BEST SELLER",
@@ -54,19 +90,6 @@ class HomeFeaturedProductCard extends StatelessWidget {
                             letterSpacing: 1.2,
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF2E3A1A),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Image.network(
-                            product.image ??
-                                "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-                            fit: BoxFit.cover,
                           ),
                         ),
                       ),

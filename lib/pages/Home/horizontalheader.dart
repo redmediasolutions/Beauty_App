@@ -11,10 +11,10 @@ class HorizontalCollection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = [
-      const Color(0xFF2F8F9D),
-      const Color(0xFFF7C75D),
-      const Color(0xFFF2B6C8),
-      const Color(0xFFE2D6F3),
+      const Color(0xFFF5F3F0),
+      const Color(0xFFF5F3F0),
+      const Color(0xFFF5F3F0),
+      const Color(0xFFF5F3F0),
     ];
 
     return SizedBox(

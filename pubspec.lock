@@ -113,6 +113,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.2.0"
+  cloud_functions:
+    dependency: "direct main"
+    description:
+      name: cloud_functions
+      sha256: "506ee80e68a7c67679150f79f00faa47da96698d8deb57a4f0844ae556c07b1e"
+      url: "https://pub.dev"
+    source: hosted
+    version: "6.1.0"
+  cloud_functions_platform_interface:
+    dependency: transitive
+    description:
+      name: cloud_functions_platform_interface
+      sha256: "1b215fccef28a8f9ebe0866c9455081c98cc9f699709e15192b64e493937827c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.8.11"
+  cloud_functions_web:
+    dependency: transitive
+    description:
+      name: cloud_functions_web
+      sha256: "04d97196681b36ea0bb195be4afafb623227bc6704ce7ec9c0a3e1ee96c8c55c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.1.4"
   code_assets:
     dependency: transitive
     description:
@@ -137,6 +161,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.7"
+  dotted_decoration:
+    dependency: transitive
+    description:
+      name: dotted_decoration
+      sha256: a5c5771367690b4f64ebfa7911954ab472b9675f025c373f514e32ac4bb81d5e
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.0"
+  eventify:
+    dependency: transitive
+    description:
+      name: eventify
+      sha256: b829429f08586cc2001c628e7499e3e3c2493a1d895fd73b00ecb23351aa5a66
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   fake_async:
     dependency: transitive
     description:
@@ -247,13 +287,13 @@ packages:
     source: hosted
     version: "4.5.2"
   flutter_launcher_icons:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: flutter_launcher_icons
-      sha256: "10f13781741a2e3972126fae08393d3c4e01fa4cd7473326b94b72cf594195e7"
+      sha256: "526faf84284b86a4cb36d20a5e45147747b7563d921373d4ee0559c54fcdbcea"
       url: "https://pub.dev"
     source: hosted
-    version: "0.14.4"
+    version: "0.13.1"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -321,7 +361,7 @@ packages:
     source: hosted
     version: "1.0.1"
   http:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: http
       sha256: "87721a4a50b19c7f1d49001e51409bddc46303966ce89a65af4f4e6004896412"
@@ -560,6 +600,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  razorpay_flutter:
+    dependency: "direct main"
+    description:
+      name: razorpay_flutter
+      sha256: "2057bfaa769813f58bdc23b9cdc4d5ea493e92154f216f1d2edac507d0936b31"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.4"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -653,6 +701,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
+  styled_divider:
+    dependency: "direct main"
+    description:
+      name: styled_divider
+      sha256: c360502fb8caf55c17467b0a59edfff68b465343ae040ce76cb08948992c2708
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.5"
   term_glyph:
     dependency: transitive
     description:
