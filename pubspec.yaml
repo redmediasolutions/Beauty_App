@@ -1,7 +1,7 @@
 name: glowfit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 0.1.0+7
+version: 0.1.1+1
 
 environment:
   sdk: ^3.11.0
@@ -27,6 +27,8 @@ dependencies:
   razorpay_flutter: ^1.4.4
   styled_divider: ^1.0.5
   http: ^1.6.0
+  algolia_helper_flutter: ^1.6.0
+  algoliasearch: ^1.49.1
 
 dev_dependencies:
   flutter_test:

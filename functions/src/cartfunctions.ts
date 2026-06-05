@@ -148,7 +148,6 @@ export const getCartPreviewTotals = onCall(
 // =======================================================
 // 🛒 CREATE SECURE ORDER
 // =======================================================
-
 export const createSecureOrder = onCall(
   {
     secrets: [
@@ -159,129 +158,400 @@ export const createSecureOrder = onCall(
     maxInstances: 10,
     concurrency: 80,
   },
+
   async (request) => {
+
+    // =========================================
+    // 🔐 AUTH
+    // =========================================
+
     if (!request.auth) {
-      throw new Error("Unauthenticated");
+
+      throw new Error(
+        "Unauthenticated",
+      );
     }
 
-    const uid = request.auth.uid;
+    const uid =
+      request.auth.uid;
 
-    const data = request.data as any;
+    const data =
+      request.data as any;
+
+    // =========================================
+    // 🎟 COUPON DATA
+    // =========================================
+
+    const couponId =
+      data.couponId || null;
+
+    const couponCode =
+      data.couponCode || null;
+
+    const couponDiscount =
+      Number(
+        data.couponDiscount || 0,
+      );
+
+    // =========================================
+    // 💳 PAYMENT
+    // =========================================
 
     const paymentMethod =
-      data.paymentMethod || "online";
+      data.paymentMethod ||
+      "online";
 
     const useWallet =
       data.useWallet === true;
 
-    const cartSnap = await admin
-      .firestore()
-      .collection("carts")
-      .doc(uid)
-      .collection("items")
-      .get();
+    // =========================================
+    // 🛒 FETCH CART
+    // =========================================
+
+    const cartSnap =
+      await admin
+        .firestore()
+        .collection("carts")
+        .doc(uid)
+        .collection("items")
+        .get();
 
     if (cartSnap.empty) {
-      throw new Error("Cart is empty");
+
+      throw new Error(
+        "Cart is empty",
+      );
     }
+
+    // =========================================
+    // 💰 CALCULATE SUBTOTAL
+    // =========================================
 
     let subtotal = 0;
 
     cartSnap.forEach((doc) => {
-      const item = doc.data();
+
+      const item =
+        doc.data();
 
       subtotal +=
-        Number(item.salePrice || 0) *
-        Number(item.quantity || 1);
+        Number(
+          item.salePrice || 0,
+        ) *
+        Number(
+          item.quantity || 1,
+        );
     });
 
+    // =========================================
+    // 🚚 SHIPPING
+    // =========================================
+
     const shipping =
-      subtotal <= FREE_SHIPPING_THRESHOLD
+      subtotal <=
+      FREE_SHIPPING_THRESHOLD
         ? SHIPPING_BELOW_THRESHOLD
         : SHIPPING_ABOVE_THRESHOLD;
 
-    const tax = subtotal * TAX_PERCENTAGE;
+    // =========================================
+    // 🧾 TAX
+    // =========================================
+
+    const tax =
+      Math.round(
+        subtotal *
+          TAX_PERCENTAGE *
+          100,
+      ) / 100;
+
+    // =========================================
+    // 💵 COD CHARGE
+    // =========================================
 
     const codCharge =
       paymentMethod === "cod"
         ? COD_CHARGE
         : 0;
 
+    // =========================================
+    // 📦 GROSS TOTAL
+    // =========================================
+
     const grossTotal =
-      subtotal + shipping + tax + codCharge;
+      subtotal +
+      shipping +
+      tax +
+      codCharge;
 
-    const userDoc = await admin
-      .firestore()
-      .collection("Users")
-      .doc(uid)
-      .get();
+    // =========================================
+    // 🎟 APPLY COUPON
+    // =========================================
 
-    const walletBalance = Number(
-      userDoc.data()?.walletBalance || 0
-    );
+    const discountedTotal =
+      Math.max(
+        grossTotal -
+          couponDiscount,
+        0,
+      );
 
-    const walletUsed = useWallet
-      ? Math.min(walletBalance, grossTotal)
-      : 0;
+    // =========================================
+    // 👛 FETCH WALLET
+    // =========================================
+
+    const userDoc =
+      await admin
+        .firestore()
+        .collection("Users")
+        .doc(uid)
+        .get();
+
+    const walletBalance =
+      Number(
+        userDoc.data()
+          ?.walletBalance || 0,
+      );
+
+    // =========================================
+    // 👛 APPLY WALLET
+    // =========================================
+
+    const walletUsed =
+      useWallet
+        ? Math.min(
+            walletBalance,
+            discountedTotal,
+          )
+        : 0;
+
+    // =========================================
+    // 💳 FINAL PAYABLE
+    // =========================================
 
     const finalPayable =
-      grossTotal - walletUsed;
+      Math.max(
+        discountedTotal -
+          walletUsed,
+        0,
+      );
 
-    let razorpayOrderId = null;
-    let razorpayAmount = null;
+    // =========================================
+    // 💳 CREATE RAZORPAY ORDER
+    // =========================================
 
-   if (
-  paymentMethod === "online" &&
-  finalPayable > 0
-) {
+    let razorpayOrderId =
+      null;
 
-  const razorpay = new Razorpay({
-    key_id:
-      process.env.RAZORPAY_KEY_ID!,
+    let razorpayAmount =
+      null;
 
-    key_secret:
-      process.env.RAZORPAY_KEY_SECRET!,
-  });
+    if (
+      paymentMethod ===
+        "online" &&
+      finalPayable > 0
+    ) {
 
-  const order =
-    await razorpay.orders.create({
-      amount: Math.round(
-        finalPayable * 100
-      ),
+      const razorpay =
+        new Razorpay({
 
-      currency: "INR",
+          key_id:
+            process.env
+              .RAZORPAY_KEY_ID!,
 
-      receipt:
-        `gladskin_${Date.now()}`,
+          key_secret:
+            process.env
+              .RAZORPAY_KEY_SECRET!,
+        });
 
-      notes: {
-        uid,
-      },
-    });
+      const order =
+        await razorpay
+          .orders
+          .create({
 
-  razorpayOrderId = order.id;
-  razorpayAmount = order.amount;
-}
+            amount:
+              Math.round(
+                finalPayable *
+                  100,
+              ),
 
-    return {
+            currency: "INR",
+
+            receipt:
+              `gladskin_${Date.now()}`,
+
+            notes: {
+
+              uid,
+
+              couponCode:
+                couponCode || "",
+
+              couponDiscount:
+                couponDiscount
+                  .toString(),
+            },
+          });
+
+      razorpayOrderId =
+        order.id;
+
+      razorpayAmount =
+        order.amount;
+    }
+
+    // =========================================
+    // 🔥 SAVE DRAFT ORDER
+    // =========================================
+
+    const orderRef =
+      admin
+        .firestore()
+        .collection("Orders")
+        .doc();
+
+    await orderRef.set({
+
+      uid,
+
       subtotal,
+
       shipping,
+
       tax,
+
       codCharge,
+
+      grossTotal,
+
+      // =====================================
+      // 🎟 COUPON
+      // =====================================
+
+      couponId,
+
+      couponCode,
+
+      couponDiscount,
+
+      discountedTotal,
+
+      // =====================================
+      // 👛 WALLET
+      // =====================================
+
       walletBalance,
+
       walletUsed,
+
+      // =====================================
+      // 💳 PAYMENT
+      // =====================================
+
+      paymentMethod,
+
       finalPayable,
 
       razorpayOrderId,
+
+      razorpayAmount,
+
+      paymentStatus:
+        paymentMethod ===
+        "cod"
+          ? "pending"
+          : "created",
+
+      status:
+        paymentMethod ===
+        "cod"
+          ? "pending"
+          : "payment_pending",
+
+      // =====================================
+      // 🛒 ITEMS SNAPSHOT
+      // =====================================
+
+      items: cartSnap.docs.map((doc) => {
+
+  const item =
+    doc.data();
+
+  return {
+
+    productId:
+      item.productId,
+
+    name:
+      item.name || "",
+
+    image:
+      item.image || "",
+
+    quantity:
+      item.quantity || 1,
+
+    salePrice:
+      item.salePrice || 0,
+  };
+}),
+
+      createdAt:
+        admin.firestore
+          .FieldValue
+          .serverTimestamp(),
+
+      updatedAt:
+        admin.firestore
+          .FieldValue
+          .serverTimestamp(),
+    });
+
+    // =========================================
+    // ✅ RESPONSE
+    // =========================================
+
+    return {
+
+      success: true,
+
+      orderId:
+        orderRef.id,
+
+      subtotal,
+
+      shipping,
+
+      tax,
+
+      codCharge,
+
+      grossTotal,
+
+      couponId,
+
+      couponCode,
+
+      couponDiscount,
+
+      discountedTotal,
+
+      walletBalance,
+
+      walletUsed,
+
+      finalPayable,
+
+      razorpayOrderId,
+
       razorpayAmount,
 
       razorpayKey:
-        paymentMethod === "online"
+        paymentMethod ===
+        "online"
           ? process.env
               .RAZORPAY_KEY_ID
           : null,
     };
-  }
+  },
 );
 
 // =======================================================
@@ -299,17 +569,25 @@ export const finalizeOrder = onCall(
     maxInstances: 10,
     concurrency: 80,
   },
+
   async (request) => {
     try {
+
+      // ===================================================
+      // 🔐 AUTH
+      // ===================================================
+
       if (!request.auth) {
         throw new Error(
           "Unauthenticated"
         );
       }
 
-      const uid = request.auth.uid;
+      const uid =
+        request.auth.uid;
 
-      const data = request.data as any;
+      const data =
+        request.data as any;
 
       const useWallet =
         data.useWallet === true;
@@ -334,10 +612,11 @@ export const finalizeOrder = onCall(
         razorpaySignature;
 
       // ===================================================
-      // 🔐 VERIFY RAZORPAY
+      // 🔐 VERIFY PAYMENT
       // ===================================================
 
       if (isOnlinePayment) {
+
         const body =
           razorpayOrderId +
           "|" +
@@ -377,17 +656,29 @@ export const finalizeOrder = onCall(
         await cartRef.get();
 
       if (cartSnap.empty) {
-        throw new Error("Cart empty");
+        throw new Error(
+          "Cart empty"
+        );
       }
+
+      // ===================================================
+      // 💰 SUBTOTAL
+      // ===================================================
 
       let subtotal = 0;
 
       cartSnap.forEach((doc) => {
-        const item = doc.data();
+
+        const item =
+          doc.data();
 
         subtotal +=
-          Number(item.salePrice || 0) *
-          Number(item.quantity || 1);
+          Number(
+            item.salePrice || 0
+          ) *
+          Number(
+            item.quantity || 1
+          );
       });
 
       // ===================================================
@@ -401,12 +692,32 @@ export const finalizeOrder = onCall(
           : SHIPPING_ABOVE_THRESHOLD;
 
       const tax =
-        subtotal * TAX_PERCENTAGE;
+        subtotal *
+        TAX_PERCENTAGE;
 
       const codCharge =
         isOnlinePayment
           ? 0
           : COD_CHARGE;
+
+      // ===================================================
+      // 🎟 COUPON
+      // ===================================================
+
+      const couponId =
+        data.couponId || null;
+
+      const couponCode =
+        data.couponCode || null;
+
+      const couponDiscount =
+        Number(
+          data.couponDiscount || 0
+        );
+
+      // ===================================================
+      // 💵 GROSS TOTAL
+      // ===================================================
 
       const grossTotal =
         subtotal +
@@ -414,8 +725,15 @@ export const finalizeOrder = onCall(
         tax +
         codCharge;
 
+      const discountedTotal =
+        Math.max(
+          grossTotal -
+            couponDiscount,
+          0
+        );
+
       // ===================================================
-      // 💰 WALLET
+      // 👛 WALLET
       // ===================================================
 
       const userRef = admin
@@ -429,19 +747,22 @@ export const finalizeOrder = onCall(
       const userData =
         userSnap.data() || {};
 
-      const walletBalance = Number(
-        userData.walletBalance || 0
-      );
+      const walletBalance =
+        Number(
+          userData.walletBalance || 0
+        );
 
-      const walletUsed = useWallet
-        ? Math.min(
-            walletBalance,
-            grossTotal
-          )
-        : 0;
+      const walletUsed =
+        useWallet
+          ? Math.min(
+              walletBalance,
+              discountedTotal
+            )
+          : 0;
 
       const finalPayable =
-        grossTotal - walletUsed;
+        discountedTotal -
+        walletUsed;
 
       // ===================================================
       // 🎁 REWARD
@@ -449,7 +770,9 @@ export const finalizeOrder = onCall(
 
       const rewardAmount =
         Math.round(
-          subtotal * 0.1 * 100
+          subtotal *
+            0.1 *
+            100
         ) / 100;
 
       // ===================================================
@@ -486,6 +809,11 @@ export const finalizeOrder = onCall(
 
           shippingAddress:
             shipping,
+
+          couponId,
+          couponCode,
+          couponDiscount,
+          discountedTotal,
         });
 
       if (!wooOrder?.id) {
@@ -498,13 +826,14 @@ export const finalizeOrder = onCall(
         wooOrder.id;
 
       // ===================================================
-      // 🔥 FIRESTORE TRANSACTION
+      // 🔥 TRANSACTION
       // ===================================================
 
       await admin
         .firestore()
         .runTransaction(
           async (transaction) => {
+
             const buyerSnap =
               await transaction.get(
                 userRef
@@ -524,34 +853,56 @@ export const finalizeOrder = onCall(
                 buyerData.referredByUserId;
             }
 
-            // 💰 Deduct Wallet
+            // ===============================================
+            // 👛 WALLET DEDUCTION
+            // ===============================================
+
             if (walletUsed > 0) {
+
               transaction.update(
                 userRef,
                 {
                   walletBalance:
                     admin.firestore
                       .FieldValue.increment(
-                      -walletUsed
-                    ),
+                        -walletUsed
+                      ),
                 }
               );
             }
 
-            // 🧹 Clear Cart
-            cartSnap.forEach((doc) => {
-              transaction.delete(
-                doc.ref
-              );
-            });
+            // ===============================================
+            // 🧹 CLEAR CART
+            // ===============================================
 
-            // 📦 Save Order
-            const orderRef = admin
-              .firestore()
-              .collection("Orders")
-              .doc(
-                String(wooOrderId)
-              );
+            cartSnap.forEach(
+              (doc) => {
+
+                transaction.delete(
+                  doc.ref
+                );
+              }
+            );
+
+            // ===============================================
+            // 📦 ORDER REF
+            // ===============================================
+
+            const orderRef =
+              admin
+                .firestore()
+                .collection(
+                  "Orders"
+                )
+                .doc(
+                  String(
+                    wooOrderId
+                  )
+                );
+
+            // ===============================================
+            // 📦 SAVE ORDER
+            // ===============================================
 
             transaction.set(
               orderRef,
@@ -569,9 +920,27 @@ export const finalizeOrder = onCall(
 
                 codCharge,
 
+                grossTotal,
+
+                discountedTotal,
+
                 walletUsed,
 
                 finalPayable,
+
+                // ===================================
+                // 🎟 COUPON DATA
+                // ===================================
+
+                couponId,
+
+                couponCode,
+
+                couponDiscount,
+
+                // ===================================
+                // 💳 PAYMENT
+                // ===================================
 
                 paymentMethod:
                   isOnlinePayment
@@ -591,6 +960,10 @@ export const finalizeOrder = onCall(
                   razorpayPaymentId ||
                   null,
 
+                // ===================================
+                // 🎁 REWARDS
+                // ===================================
+
                 rewardAmount,
 
                 rewardReleased:
@@ -602,17 +975,65 @@ export const finalizeOrder = onCall(
                 referralRewardGivenTo:
                   referrerUid,
 
+                // ===================================
+                // 📦 ITEMS
+                // ===================================
+
+                items: cartSnap.docs.map((doc) => {
+
+  const item = doc.data();
+
+  return {
+
+    productId:
+      item.productId,
+
+    name:
+      item.name || "",
+
+    image:
+      item.image || "",
+
+    quantity:
+      item.quantity || 1,
+
+    salePrice:
+      item.salePrice || 0,
+  };
+}),
+
+                // ===================================
+                // 🏠 ADDRESS
+                // ===================================
+
+                billing,
+
+                shippingAddress:
+                  shipping,
+
+                // ===================================
+                // 🕒 TIMESTAMPS
+                // ===================================
+
                 createdAt:
+                  admin.firestore
+                    .FieldValue.serverTimestamp(),
+
+                updatedAt:
                   admin.firestore
                     .FieldValue.serverTimestamp(),
               }
             );
 
-            // 🎁 Pending Referral Reward
+            // ===============================================
+            // 🎁 REFERRAL REWARD
+            // ===============================================
+
             if (
               referrerUid &&
               rewardAmount > 0
             ) {
+
               const pendingTxRef =
                 admin
                   .firestore()
@@ -654,11 +1075,17 @@ export const finalizeOrder = onCall(
           }
         );
 
+      // ===================================================
+      // ✅ SUCCESS
+      // ===================================================
+
       return {
         success: true,
         orderId: wooOrderId,
       };
+
     } catch (error: any) {
+
       console.error(
         "❌ finalizeOrder ERROR:",
         error
@@ -734,6 +1161,8 @@ async function createWooOrder({
   razorpayPaymentId,
   billing,
   shippingAddress,
+  couponCode,
+  couponDiscount,
 }: any): Promise<any> {
   const lineItems: any[] = [];
 
@@ -749,7 +1178,34 @@ async function createWooOrder({
     });
   });
 
-  const feeLines: any[] = [];
+  const feeLines = [];
+
+// ========================================
+
+// 🎟 COUPON DISCOUNT
+
+// ========================================
+
+if (couponDiscount > 0) {
+
+  feeLines.push({
+
+    name:
+
+      `Coupon (${couponCode})`,
+
+    total:
+
+      (-couponDiscount).toFixed(2),
+
+    tax_status:
+
+      "none",
+
+  });
+
+}
+  
 
   if (walletUsed > 0) {
     feeLines.push({
@@ -825,7 +1281,7 @@ async function createWooOrder({
                 "app-tax",
 
               label:
-                "GST 5%",
+                "GST 18%",
 
               compound:
                 false,
@@ -890,17 +1346,12 @@ async function createWooOrder({
 
   const response: any =
    await axios.post(
-  "https://gs.redmediasolutions.in/wp-json/wc/v3/orders",
+  "https://store.gladskin.in/wp-json/wc/v3/orders",
       body,
       {
         auth: {
-          username:
-            process.env
-              .WOO_KEY!,
-
-          password:
-            process.env
-              .WOO_SECRET!,
+          username:"ck_1f90c93d45a4593f00f89ba5c942001e13898e09",
+          password:"cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392",
         },
       }
     );

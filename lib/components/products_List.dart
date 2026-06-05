@@ -19,77 +19,229 @@ class ProductsList extends StatefulWidget {
   });
 
   @override
-  State<ProductsList> createState() => _ProductsListState();
+  State<ProductsList> createState() =>
+      _ProductsListState();
 }
 
-class _ProductsListState extends State<ProductsList> {
+class _ProductsListState
+    extends State<ProductsList> {
+
+  // =====================================
+  // FALLBACK IMAGE
+  // =====================================
+
+  static const String fallbackImage =
+      'https://img.freepik.com/free-photo/cosmetic-male-beauty-products-with-display_23-2150435210.jpg?semt=ais_hybrid&w=740&q=80';
+
   @override
   Widget build(BuildContext context) {
+
     final double regular =
-        double.tryParse(widget.product.regularPrice?.toString() ?? '') ?? 0;
+        double.tryParse(
+              widget.product
+                      .regularPrice
+                      ?.toString() ??
+                  '',
+            ) ??
+            0;
 
     final double sale =
-        double.tryParse(widget.product.salePrice?.toString() ?? '') ?? 0;
+        double.tryParse(
+              widget.product
+                      .salePrice
+                      ?.toString() ??
+                  '',
+            ) ??
+            0;
 
-    final bool hasDiscount = sale > 0 && sale < regular;
+    final bool hasDiscount =
+        sale > 0 &&
+            sale < regular;
 
-    final int discountPercent = hasDiscount
-        ? (((regular - sale) / regular) * 100).round()
-        : 0;
+    final int discountPercent =
+        hasDiscount
+            ? (((regular - sale) /
+                        regular) *
+                    100)
+                .round()
+            : 0;
+
+    final String imageUrl =
+        (widget.imageUrl != null &&
+                widget.imageUrl!
+                    .trim()
+                    .isNotEmpty)
+            ? widget.imageUrl!
+            : fallbackImage;
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F9F9),
-        borderRadius: BorderRadius.circular(20),
+        color:
+            const Color(0xFFF9F9F9),
+
+        borderRadius:
+            BorderRadius.circular(
+          20,
+        ),
       ),
+
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
         children: [
+
           // ================= IMAGE =================
+
           Expanded(
             flex: 6,
+
             child: Stack(
               children: [
+
                 Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: widget.imageUrl != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(15),
-                          child: Image.network(
-                            widget.imageUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
+                  padding:
+                      const EdgeInsets.all(
+                    12,
+                  ),
+
+                  child: ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
+
+                    child: Image.network(
+                      imageUrl,
+
+                      fit: BoxFit.cover,
+
+                      width:
+                          double.infinity,
+
+                      height:
+                          double.infinity,
+
+                      // =========================
+                      // LOADING
+                      // =========================
+
+                      loadingBuilder: (
+                        context,
+                        child,
+                        loadingProgress,
+                      ) {
+
+                        if (loadingProgress ==
+                            null) {
+
+                          return child;
+                        }
+
+                        return Container(
+                          color:
+                              Colors.grey[
+                                  100],
+
+                          child:
+                              const Center(
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth:
+                                  2,
+                            ),
                           ),
-                        )
-                      : const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey,
-                          ),
-                        ),
+                        );
+                      },
+
+                      // =========================
+                      // ERROR FALLBACK
+                      // =========================
+
+                      errorBuilder: (
+                        context,
+                        error,
+                        stackTrace,
+                      ) {
+
+                        return Image.network(
+                          fallbackImage,
+
+                          fit:
+                              BoxFit.cover,
+
+                          errorBuilder: (
+                            context,
+                            error,
+                            stackTrace,
+                          ) {
+
+                            return Container(
+                              color:
+                                  Colors
+                                          .grey[
+                                      100],
+
+                              child:
+                                  const Center(
+                                child:
+                                    Icon(
+                                  Icons
+                                      .image_not_supported,
+
+                                  color:
+                                      Colors.grey,
+
+                                  size:
+                                      32,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
                 ),
 
                 /// 🔥 DISCOUNT BADGE
+
                 if (hasDiscount)
+
                   Positioned(
                     top: 10,
                     left: 10,
+
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
+                      padding:
+                          const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 4,
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8),
+
+                      decoration:
+                          BoxDecoration(
+                        color:
+                            Colors.black,
+
+                        borderRadius:
+                            BorderRadius.circular(
+                          8,
+                        ),
                       ),
+
                       child: Text(
                         "$discountPercent% OFF",
-                        style: const TextStyle(
-                          color: Colors.white,
+
+                        style:
+                            const TextStyle(
+                          color:
+                              Colors.white,
+
                           fontSize: 10,
-                          fontWeight: FontWeight.bold,
+
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
                     ),
@@ -99,54 +251,107 @@ class _ProductsListState extends State<ProductsList> {
           ),
 
           // ================= INFO =================
+
           Expanded(
             flex: 4,
+
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              padding:
+                  const EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                12,
+              ),
+
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment:
+                    CrossAxisAlignment
+                        .start,
+
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .spaceEvenly,
+
                 children: [
+
                   /// PRODUCT NAME
+
                   Text(
-                    widget.name.toUpperCase(),
+                    widget.name
+                        .toUpperCase(),
+
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
+
+                    overflow:
+                        TextOverflow
+                            .ellipsis,
+
+                    style:
+                        GoogleFonts.inter(
                       fontSize: 12,
-                      letterSpacing: 1.1,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+
+                      letterSpacing:
+                          1.1,
+
+                      fontWeight:
+                          FontWeight.w600,
+
+                      color:
+                          Colors.black87,
                     ),
                   ),
 
-                  ///  PRICE SECTION
+                  /// PRICE SECTION
+
                   Flexible(
                     child: Row(
                       children: [
-                        /// SALE / FINAL PRICE
+
+                        /// FINAL PRICE
+
                         Text(
-                          "₹${(hasDiscount ? sale : regular).toStringAsFixed(0)}",
-                          style: GoogleFonts.inter(
+                          "₹${(hasDiscount ? sale : sale).toStringAsFixed(0)}",
+
+                          style:
+                              GoogleFonts.inter(
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black,
+
+                            fontWeight:
+                                FontWeight.w700,
+
+                            color:
+                                Colors.black,
                           ),
                         ),
 
-                        const SizedBox(width: 6),
+                        const SizedBox(
+                          width: 6,
+                        ),
 
-                        /// REGULAR PRICE (STRIKETHROUGH)
-                        if (hasDiscount)
+                        /// REGULAR PRICE
+
+                        if (regular > 0)
+
                           Flexible(
                             child: Text(
                               "₹${regular.toStringAsFixed(0)}",
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: Colors.grey,
-                                decoration: TextDecoration.lineThrough,
+
+                              style:
+                                  GoogleFonts.inter(
+                                fontSize: 14,
+
+                                color:
+                                    Colors.grey,
+
+                                decoration:
+                                    TextDecoration
+                                        .lineThrough,
                               ),
-                              overflow: TextOverflow.ellipsis,
+
+                              overflow:
+                                  TextOverflow
+                                      .ellipsis,
                             ),
                           ),
                       ],

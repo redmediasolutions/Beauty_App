@@ -20,6 +20,13 @@ class HomeFeaturedProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double mrp = product.regularPrice ?? 0;
+final double salePrice = product.salePrice ?? mrp;
+
+final int discountPercent =
+    mrp > salePrice && mrp > 0
+        ? (((mrp - salePrice) / mrp) * 100).round()
+        : 0;
     return GestureDetector(
       onTap: () => context.push('/product/${product.id}'),
       child: SizedBox(
@@ -111,14 +118,62 @@ class HomeFeaturedProductCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              "₹${_formatPrice(product.regularPrice)}",
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFFB34E6F),
-              ),
+            
+
+Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    Row(
+      children: [
+        Text(
+          "₹${_formatPrice(salePrice)}",
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFFB34E6F),
+          ),
+        ),
+
+        const SizedBox(width: 6),
+
+        if (mrp > salePrice)
+          Text(
+            "₹${_formatPrice(mrp)}",
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              decoration: TextDecoration.lineThrough,
             ),
+          ),
+                  const Spacer(),
+          if (discountPercent > 0) ...[
+      const SizedBox(height: 4),
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: 3,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.green.shade300,
+          ),
+        ),
+        child: Text(
+          "SAVE $discountPercent%",
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Colors.green.shade700,
+          ),
+        ),
+      ),
+    ],
+      ],
+    ),
+  ],
+)
           ],
         ),
       ),
