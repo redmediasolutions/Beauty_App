@@ -29,137 +29,126 @@ class _AllProductsState extends State<AllProducts> {
   int _selectedCategoryIndex = 0;
   int _selectedSubCategoryId = 49;
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  _selectedCategoryId = 49; // ✅ IMPORTANT
+    _selectedCategoryId = 49; // ✅ IMPORTANT
 
-  loadCategoriesFromRemote();
+    loadCategoriesFromRemote();
 
-  _loadProducts();
+    _loadProducts();
 
-  _scrollController.addListener(() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _loadProducts();
-    }
-  });
-}
-  Future<void> loadCategoriesFromRemote() async {
-  try {
-    final raw = RemoteConfigService.getProductCategories();
-
-
-    debugPrint("📡 Remote categories: $raw");
-
-    final ids = raw
-        .split(',')
-        .map((e) => int.tryParse(e.trim()))
-        .where((e) => e != null)
-        .cast<int>()
-        .toList();
-
-    final result = await APIService.fetchCategoriesByIds(ids);
-
-   setState(() {
-  categories = [
-    CategoryModel(
-      id: 49,
-      name: "All",
-      image: "",
-      parent: 0,
-    ),
-    ...result,
-  ];
-});
-
-    // Load subcategories for first category
-    if (categories.isNotEmpty) {
-      await loadSubCategories(categories.first.id);
-    }
-  } catch (e) {
-    debugPrint("❌ Remote category error: $e");
-  }
-}
-
-Future<void> _onCategorySelected(int index) async {
-  final selected = categories[index];
-
-  setState(() {
-    _selectedCategoryIndex = index;
-    _selectedCategoryId = selected.id;
-    _selectedSubCategoryId = selected.id; // default = same
-  });
-
-  if (selected.id != 49) {
-    await loadSubCategories(selected.id);
-  } else {
-    setState(() => subCategories = []);
-  }
-
-  await _loadProducts(reset: true);
-}
-
-Future<void> _onSubCategorySelected(int id) async {
-  setState(() {
-    _selectedSubCategoryId = id;
-  });
-
-  await _loadProducts(reset: true);
-}
-
-
-
-Future<void> loadSubCategories(int parentId) async {
-  final result = await APIService.fetchSubCategories(parentId);
-
-  setState(() {
-    subCategories = [
-      CategoryModel(
-        id: parentId,
-        name: "All",
-        image: "",
-        parent: 0,
-      ),
-      ...result,
-    ];
-  });
-}
-  //====================Load Products==========================
-  Future<void> _loadProducts({bool reset = false}) async {
-  if (_isLoading || (!_hasMore && !reset)) return;
-
-  if (reset) {
-    _currentPage = 1;
-    _hasMore = true;
-    _products.clear();
-  }
-
-  setState(() => _isLoading = true);
-
-  try {
-    final newProducts = await APIService.fetchProducts(
-      page: _currentPage,
-      perPage: 10,
-      categoryId: _selectedSubCategoryId,
-    );
-
-    setState(() {
-      _isLoading = false;
-
-      if (newProducts.isEmpty) {
-        _hasMore = false;
-      } else {
-        _currentPage++;
-        _products.addAll(newProducts);
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        _loadProducts();
       }
     });
-  } catch (e) {
-    setState(() => _isLoading = false);
-    debugPrint("❌ Load error: $e");
   }
-}
+
+  Future<void> loadCategoriesFromRemote() async {
+    try {
+      final raw = RemoteConfigService.getProductCategories();
+
+      debugPrint("📡 Remote categories: $raw");
+
+      final ids = raw
+          .split(',')
+          .map((e) => int.tryParse(e.trim()))
+          .where((e) => e != null)
+          .cast<int>()
+          .toList();
+
+      final result = await APIService.fetchCategoriesByIds(ids);
+
+      setState(() {
+        categories = [
+          CategoryModel(id: 49, name: "All", image: "", parent: 0),
+          ...result,
+        ];
+      });
+
+      // Load subcategories for first category
+      if (categories.isNotEmpty) {
+        await loadSubCategories(categories.first.id);
+      }
+    } catch (e) {
+      debugPrint("❌ Remote category error: $e");
+    }
+  }
+
+  Future<void> _onCategorySelected(int index) async {
+    final selected = categories[index];
+
+    setState(() {
+      _selectedCategoryIndex = index;
+      _selectedCategoryId = selected.id;
+      _selectedSubCategoryId = selected.id; // default = same
+    });
+
+    if (selected.id != 49) {
+      await loadSubCategories(selected.id);
+    } else {
+      setState(() => subCategories = []);
+    }
+
+    await _loadProducts(reset: true);
+  }
+
+  Future<void> _onSubCategorySelected(int id) async {
+    setState(() {
+      _selectedSubCategoryId = id;
+    });
+
+    await _loadProducts(reset: true);
+  }
+
+  Future<void> loadSubCategories(int parentId) async {
+    final result = await APIService.fetchSubCategories(parentId);
+
+    setState(() {
+      subCategories = [
+        CategoryModel(id: parentId, name: "All", image: "", parent: 0),
+        ...result,
+      ];
+    });
+  }
+
+  //====================Load Products==========================
+  Future<void> _loadProducts({bool reset = false}) async {
+    if (_isLoading || (!_hasMore && !reset)) return;
+
+    if (reset) {
+      _currentPage = 1;
+      _hasMore = true;
+      _products.clear();
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final newProducts = await APIService.fetchProducts(
+        page: _currentPage,
+        perPage: 10,
+        categoryId: _selectedSubCategoryId,
+      );
+
+      setState(() {
+        _isLoading = false;
+
+        if (newProducts.isEmpty) {
+          _hasMore = false;
+        } else {
+          _currentPage++;
+          _products.addAll(newProducts);
+        }
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      debugPrint("❌ Load error: $e");
+    }
+  }
 
   @override
   void dispose() {
@@ -199,66 +188,67 @@ Future<void> loadSubCategories(int parentId) async {
                     const SizedBox(height: 8),
                     //category list
                     SizedBox(
-  height: 100,
-  child: ListView.builder(
-    scrollDirection: Axis.horizontal,
-    physics: const BouncingScrollPhysics(),
-    itemCount: categories.length,
-    itemBuilder: (context, index) {
-      final cat = categories[index];
-      final isSelected = index == _selectedCategoryIndex;
+                      height: 100,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: categories.length,
+                        itemBuilder: (context, index) {
+                          final cat = categories[index];
+                          final isSelected = index == _selectedCategoryIndex;
 
-      return GestureDetector(
-        onTap: () => _onCategorySelected(index),
-        child: Padding(
-          padding: const EdgeInsets.only(right: 15),
-          child: Column(
-            children: [
-              /// 🔥 CATEGORY IMAGE
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isSelected
-                        ? const Color(0xFF6F0562)
-                        : Colors.transparent,
-                    width: 2,
-                  ),
-                ),
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey.shade100,
-                  backgroundImage: (cat.image.isNotEmpty)
-                      ? NetworkImage(cat.image)
-                      : null,
-                  child: (cat.image.isEmpty)
-                      ? const Icon(Icons.category, size: 20)
-                      : null,
-                ),
-              ),
+                          return GestureDetector(
+                            onTap: () => _onCategorySelected(index),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 15),
+                              child: Column(
+                                children: [
+                                  /// 🔥 CATEGORY IMAGE
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? const Color(0xFF6F0562)
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: Colors.grey.shade100,
+                                      backgroundImage: (cat.image.isNotEmpty)
+                                          ? NetworkImage(cat.image)
+                                          : null,
+                                      child: (cat.image.isEmpty)
+                                          ? const Icon(Icons.category, size: 20)
+                                          : null,
+                                    ),
+                                  ),
 
-              const SizedBox(height: 6),
+                                  const SizedBox(height: 6),
 
-              /// 🔥 CATEGORY NAME
-              Text(
-                cat.name,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.w500,
-                  color: isSelected
-                      ? const Color(0xFF6F0562)
-                      : Colors.black,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  ),
-),
+                                  /// 🔥 CATEGORY NAME
+                                  Text(
+                                    cat.name,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? const Color(0xFF6F0562)
+                                          : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
 
                     if (_products.isEmpty && _isLoading)
                       const Center(child: CircularProgressIndicator())
@@ -266,142 +256,165 @@ Future<void> loadSubCategories(int parentId) async {
                       const Center(child: Text("No products found"))
                     else
                       /// 🔥 MAIN CONTENT (SIDEBAR + PRODUCTS)
-Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    /// ================= LEFT SIDEBAR =================
-   if (subCategories.isNotEmpty)
-  Container(
-    width: 80,
-    color: const Color(0xFFF7F7F7),
-    child: ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: subCategories.length,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemBuilder: (context, index) {
-        final sub = subCategories[index];
-        final isSelected = sub.id == _selectedSubCategoryId;
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// ================= LEFT SIDEBAR =================
+                          if (subCategories.isNotEmpty)
+                            Container(
+                              width: 80,
+                              color: const Color(0xFFF7F7F7),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: subCategories.length,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                itemBuilder: (context, index) {
+                                  final sub = subCategories[index];
+                                  final isSelected =
+                                      sub.id == _selectedSubCategoryId;
 
-        return GestureDetector(
-          onTap: () => _onSubCategorySelected(sub.id),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            height: 95,
-            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Colors.white
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
+                                  return GestureDetector(
+                                    onTap: () => _onSubCategorySelected(sub.id),
+                                    child: AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      height: 95,
+                                      margin: const EdgeInsets.symmetric(
+                                        vertical: 6,
+                                        horizontal: 6,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: isSelected
+                                            ? [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withOpacity(0.05),
+                                                  blurRadius: 8,
+                                                  offset: const Offset(0, 3),
+                                                ),
+                                              ]
+                                            : [],
+                                      ),
+
+                                      /// 🔥 CENTERED CONTENT
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 44,
+                                            height: 44,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? const Color(0xFF6F0562)
+                                                    : Colors.transparent,
+                                                width: 2,
+                                              ),
+                                              color: Colors.grey.shade100,
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              child: sub.image.isNotEmpty
+                                                  ? Image.network(
+                                                      sub.image,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : const Icon(
+                                                      Icons.category,
+                                                      size: 20,
+                                                    ),
+                                            ),
+                                          ),
+
+                                          const SizedBox(height: 6),
+
+                                          Flexible(
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 4,
+                                                  ),
+                                              child: Text(
+                                                sub.name,
+                                                maxLines: 1, // 🔥 IMPORTANT
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w400,
+                                                  color: isSelected
+                                                      ? const Color(0xFF6F0562)
+                                                      : Colors.black87,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                          /// ================= PRODUCTS GRID =================
+                          Expanded(
+                            child: GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 0,
+                                vertical: 0,
+                              ),
+                              itemCount: _products.length,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 20,
+                                    crossAxisSpacing: 12,
+                                    childAspectRatio: 0.7,
+                                  ),
+                              itemBuilder: (context, index) {
+                                final p = _products[index];
+
+                                return GestureDetector(
+                                  onTap: () {
+                                    final productId = p.id.toString();
+
+                                    if (productId.isEmpty) return;
+
+                                    context.push('/product/$productId');
+                                  },
+                                  child: ProductsList(
+                                    id: p.id.toString(),
+                                    name: p.name,
+                                    imageUrl: p.image,
+                                    product: p,
+                                    onAddToCart: () {},
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                    ]
-                  : [],
-            ),
-
-            /// 🔥 CENTERED CONTENT
-            child: 
-            
-Column(
-  mainAxisAlignment: MainAxisAlignment.center,
-  children: [
-    Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected
-              ? const Color(0xFF6F0562)
-              : Colors.transparent,
-          width: 2,
-        ),
-        color: Colors.grey.shade100,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: sub.image.isNotEmpty
-            ? Image.network(sub.image, fit: BoxFit.cover)
-            : const Icon(Icons.category, size: 20),
-      ),
-    ),
-
-    const SizedBox(height: 6),
-
-    Flexible(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Text(
-          sub.name,
-          maxLines: 1, // 🔥 IMPORTANT
-          overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight:
-                isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected
-                ? const Color(0xFF6F0562)
-                : Colors.black87,
-          ),
-        ),
-      ),
-    ),
-  ],
-)
-          ),
-        );
-      },
-    ),
-  ),
-    /// ================= PRODUCTS GRID =================
-    Expanded(
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(
-          horizontal: 0,
-          vertical: 0,
-        ),
-        itemCount: _products.length,
-        gridDelegate:
-            const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 20,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.7,
-        ),
-        itemBuilder: (context, index) {
-          final p = _products[index];
-
-          return GestureDetector(
-  onTap: () {
-    final productId = p.id.toString();
-
-    if (productId.isEmpty) return;
-
-    context.push('/product/$productId');
-  },
-  child: ProductsList(
-    id: p.id.toString(),
-    name: p.name,
-    imageUrl: p.image,
-    product: p,
-    onAddToCart: () {},
-  ),
-);
-        },
-      ),
-    ),
-  ],
-),
 
                     // Loading indicator at the bottom
                     if (_isLoading && _products.isNotEmpty)

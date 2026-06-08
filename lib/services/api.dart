@@ -47,12 +47,8 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
       final List list = jsonDecode(response.body);
 
       /// ✅ FILTER: ONLY CATEGORY 41
-      final filtered = list.where((e) {
-        final categories = e['categories'] as List?;
-        if (categories == null) return false;
-
-        return categories.any((c) => c['id'] == 41);
-      }).toList();
+     final filtered =
+    list.where((e) => _isAllowedProduct(e)).toList();
 
       return filtered.map((e) => Productsmodel.fromJson(e)).toList();
     }
@@ -91,7 +87,11 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
     if (response.statusCode == 200) {
       final List list = jsonDecode(response.body);
 
-      return list.map((e) => Productsmodel.fromJson(e)).toList();
+      final filtered = list.where((e) => _isAllowedProduct(e)).toList();
+
+return filtered
+    .map((e) => Productsmodel.fromJson(e))
+    .toList();
     }
   } catch (_) {}
 
@@ -117,10 +117,9 @@ static Future<ProductDetail?> fetchSingleProductDetail(
 
       /// ✅ FILTER: ONLY CATEGORY 41
       final categories = json['categories'] as List?;
-      final isAllowed = categories != null &&
-          categories.any((c) => c['id'] == 49);
-
-      if (!isAllowed) return null; // ❌ BLOCK PRODUCT
+     if (!_isAllowedProduct(json)) {
+  return null;
+}
 
       return ProductDetail.fromJson(json);
     }
@@ -155,12 +154,8 @@ static Future<List<Productsmodel>> fetchProductsByIds(
       final List list = jsonDecode(response.body);
 
       /// ✅ FILTER: ONLY CATEGORY 41
-      final filtered = list.where((e) {
-        final categories = e['categories'] as List?;
-        if (categories == null) return false;
-
-        return categories.any((c) => c['id'] == 41);
-      }).toList();
+    final filtered =
+    list.where((e) => _isAllowedProduct(e)).toList();
 
       return filtered.map((e) => Productsmodel.fromJson(e)).toList();
     }
@@ -169,48 +164,6 @@ static Future<List<Productsmodel>> fetchProductsByIds(
   return [];
 }
 
-//======================= SEARCH FUNCTION =======================
-Future<List<Productsmodel>> searchProducts(String query) async {
-  // ✅ Prevent unnecessary API calls
-  if (query.trim().isEmpty) {
-    return [];
-  }
-
-  final uri = Uri.https(
-    "gs.redmediasolutions.in",
-    "/wp-json/gladskin/v1/search",
-    {"search": query},
-  );
-
-  try {
-    debugPrint("🔍 Searching: $query");
-
-    final response = await http
-        .get(uri)
-        .timeout(const Duration(seconds: 10)); // ✅ timeout added
-
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-
-      // ✅ Validate structure
-      if (decoded is Map && decoded["status"] == 200) {
-        final List data = decoded["data"] ?? [];
-
-        return data
-            .map((item) => Productsmodel.fromJson(item))
-            .toList();
-      } else {
-        debugPrint("⚠️ Invalid API structure");
-      }
-    } else {
-      debugPrint("❌ API Error: ${response.statusCode}");
-    }
-  } catch (e) {
-    debugPrint("❌ Search Exception: $e");
-  }
-
-  return []; // ✅ safe fallback
-}
 
 static Future<SingleOrder?> fetchSingleOrder(
   int orderId,
@@ -316,11 +269,15 @@ static Future<List<SingleOrder>> fetchOrdersByIds(
   return [];
 }
 
+static const int allowedCategoryId = 49;
+
 static bool _isAllowedProduct(Map<String, dynamic> json) {
   final categories = json['categories'] as List?;
   if (categories == null) return false;
 
-  return categories.any((c) => c['id'] == 41);
+  return categories.any(
+    (c) => c['id'] == allowedCategoryId,
+  );
 }
 
 

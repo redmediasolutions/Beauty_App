@@ -7,6 +7,44 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:536255364081:android:7314ef8d84e0c3ce7ba250",
+        "android_client_info": {
+          "package_name": "com.example.gladskin_backend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDBOfk7l7rz1yonFIv36hxJblY67JGVA0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536255364081:android:a039a1ee12c220df7ba250",
+        "android_client_info": {
+          "package_name": "com.gladskin.rd"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDBOfk7l7rz1yonFIv36hxJblY67JGVA0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:536255364081:android:6ee15cddaef8290f7ba250",
         "android_client_info": {
           "package_name": "com.rd.gladskin"

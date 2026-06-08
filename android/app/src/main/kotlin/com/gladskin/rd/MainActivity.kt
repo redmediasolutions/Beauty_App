@@ -1,4 +1,4 @@
-package com.rd.glowfit
+package com.gladskin.rd
 
 import io.flutter.embedding.android.FlutterActivity
 
