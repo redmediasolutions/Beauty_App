@@ -19,6 +19,24 @@ class RecommendedSection extends StatelessWidget {
     return clean.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
+  String _savingsAmount(Productsmodel product) {
+  final mrp = product.regularPrice ?? 0;
+  final sale = product.salePrice ?? mrp;
+
+  if (sale >= mrp) return "";
+
+  return (mrp - sale).toStringAsFixed(0);
+}
+
+int _discountPercent(Productsmodel product) {
+  final mrp = product.regularPrice ?? 0;
+  final sale = product.salePrice ?? mrp;
+
+  if (mrp <= 0 || sale >= mrp) return 0;
+
+  return (((mrp - sale) / mrp) * 100).round();
+}
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -46,7 +64,7 @@ class RecommendedSection extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           FutureBuilder<List<Productsmodel>>(
-            future: APIService.fetchProductsByCategory(categoryId: categoryId),
+            future: APIService.fetchProductsByCategory(categoryId: "41"),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const _RecommendedLoading();
@@ -141,6 +159,71 @@ class RecommendedSection extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          const SizedBox(height: 16),
+
+if (_discountPercent(primary) > 0)
+  Row(
+    children: [
+      Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 5,
+        ),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE94B7A),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          "${_discountPercent(primary)}% OFF",
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        "Save ₹${_savingsAmount(primary)}",
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF2E7D32),
+        ),
+      ),
+    ],
+  ),
+
+const SizedBox(height: 14),
+
+Row(
+  children: [
+    Text(
+      "₹${_formatPrice(primary.salePrice)}",
+      style: GoogleFonts.inter(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFFB34E6F),
+      ),
+    ),
+    if ((primary.regularPrice ?? 0) >
+        (primary.salePrice ?? primary.regularPrice ?? 0))
+      Padding(
+        padding: const EdgeInsets.only(left: 8),
+        child: Text(
+          "₹${_formatPrice(primary.regularPrice)}",
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            decoration: TextDecoration.lineThrough,
+            color: Colors.grey,
+          ),
+        ),
+      ),
+  ],
+),
+
+const SizedBox(height: 16),
+
                           OutlinedButton(
                             onPressed: () {
                               context.push('/product/${primary.id}');
@@ -162,7 +245,7 @@ class RecommendedSection extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              "ADD TO ROUTINE - ₹${_formatPrice(primary.regularPrice)}",
+                              "ADD TO ROUTINE - ₹${_formatPrice(primary.salePrice)}",
                             ),
                           ),
                         ],
@@ -271,14 +354,69 @@ class _CompactRecommendationTile extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    priceText,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFB34E6F),
-                    ),
-                  ),
+                  Row(
+  children: [
+    Text(
+      "₹${product.salePrice?.toStringAsFixed(0) ?? product.regularPrice?.toStringAsFixed(0) ?? "--"}",
+      style: GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFFB34E6F),
+      ),
+    ),
+
+    if ((product.regularPrice ?? 0) >
+        (product.salePrice ?? product.regularPrice ?? 0))
+      Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Text(
+          "₹${product.regularPrice!.toStringAsFixed(0)}",
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            decoration: TextDecoration.lineThrough,
+            color: Colors.grey,
+          ),
+        ),
+      ),
+  ],
+),
+
+if ((product.regularPrice ?? 0) >
+    (product.salePrice ?? product.regularPrice ?? 0))
+  Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 2,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE94B7A),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            "${(((product.regularPrice! - product.salePrice!) / product.regularPrice!) * 100).round()}% OFF",
+            style: GoogleFonts.inter(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          "Save ₹${(product.regularPrice! - product.salePrice!).toStringAsFixed(0)}",
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF2E7D32),
+          ),
+        ),
+      ],
+    ),
+  ),
                 ],
               ),
             ),

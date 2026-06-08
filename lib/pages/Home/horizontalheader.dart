@@ -20,7 +20,7 @@ class HorizontalCollection extends StatelessWidget {
     return SizedBox(
       height: 320,
       child: FutureBuilder<List<Productsmodel>>(
-        future: APIService.fetchProductsByCategory(categoryId: categoryId),
+        future: APIService.fetchProductsByCategory(categoryId: "19"),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const _LoadingList();
