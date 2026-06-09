@@ -10,7 +10,6 @@ class LoyaltyPointsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 1. Defining the brand background color
-   
 
     return Scaffold(
       backgroundColor: Colors.white, // Deep purple background
@@ -18,19 +17,27 @@ class LoyaltyPointsPage extends StatelessWidget {
         backgroundColor: Colors.transparent, // Seamless with background
         elevation: 0,
         leading: IconButton(
-  icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
-  onPressed: () {
-    if (context.canPop()) {
-      context.pop(); // This is the GoRouter-friendly way to go back
-    } else {
-      context.go('/profile'); // Fallback: send them to the profile route if no history
-    }
-  },
-),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop(); // This is the GoRouter-friendly way to go back
+            } else {
+              context.go(
+                '/profile',
+              ); // Fallback: send them to the profile route if no history
+            }
+          },
+        ),
         title: Text(
           "Loyalty Rewards",
-          style: Theme.of(context).textTheme.titleLarge
-        ),
+            style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontSize: 25,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -1.5,
+                                color: Colors.black,
+                              ),
+                        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -38,22 +45,22 @@ class LoyaltyPointsPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 30),
-            
+
             // --- COMPONENT 1: Gradient Balance Card ---
             _buildBalanceCard(),
-            
+
             const SizedBox(height: 25),
-            
+
             // --- COMPONENT 2: Redeem Button (Matching your image style) ---
             _buildRedeemButton(context),
-            
-            const SizedBox(height: 50),
-            
+
+            const SizedBox(height: 20),
+
             // --- COMPONENT 3: Points History (Empty placeholder for now) ---
             _buildHistoryHeader(),
-            const SizedBox(height: 20),
-            _buildEmptyHistory(),
-            
+            const SizedBox(height: 10),
+            _buildTransactionHistory(),
+
             const SizedBox(height: 50), // Bottom padding
           ],
         ),
@@ -63,105 +70,519 @@ class LoyaltyPointsPage extends StatelessWidget {
 
   // --- WIDGET 1: Dynamic Balance Card with Gradient ---
   Widget _buildBalanceCard() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    
-    return StreamBuilder<DocumentSnapshot>(
-      // Listening to the user's document for the 'points' field
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
-      builder: (context, snapshot) {
-        // Fallback to 0 if loading or if points field is missing
-        double points = 0.00;
-        
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final userData = snapshot.data!.data() as Map<String, dynamic>;
-          points = (userData['points'] ?? 0.00).toDouble();
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('Users')
+        .doc(uid)
+        .collection('walletTransactions')
+        .snapshots(),
+    builder: (context, txSnapshot) {
+
+      if (!txSnapshot.hasData) {
+        return const SizedBox();
+      }
+
+      double confirmedAmount = 0;
+      double pendingAmount = 0;
+
+      for (final doc in txSnapshot.data!.docs) {
+
+        final data =
+            doc.data()
+                as Map<String, dynamic>;
+
+        final amount =
+            ((data['amount'] ?? 0) as num)
+                .toDouble();
+
+        final status =
+            data['status'] ?? '';
+
+        if (status == 'credited') {
+          confirmedAmount += amount;
         }
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            // Recreating the blue gradient from your image
-            gradient: const LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [
-                Color(0xFF130953), // Deep Navy
-                Color(0xFF009CC6), // Bright Cyan
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              // 1. White Wallet Icon
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white12,
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 30),
-              ),
-              const SizedBox(width: 20),
-              
-              // 2. Points Text
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Available Points",
-                    style: GoogleFonts.inter(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w400),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    "₹${points.toStringAsFixed(2)}", // Formatted to 2 decimal places
-                    style: GoogleFonts.inter(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
+        if (status == 'pending') {
+          pendingAmount += amount;
+        }
+      }
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF6F0562),
+              Color(0xFF8C277B),
             ],
           ),
-        );
-      },
-    );
-  }
+          borderRadius:
+              BorderRadius.circular(32),
+        ),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+
+            Text(
+              "AVAILABLE REWARDS",
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 11,
+                letterSpacing: 2,
+                fontWeight:
+                    FontWeight.w600,
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            Text(
+              "₹${confirmedAmount.toStringAsFixed(2)}",
+              style: GoogleFonts.lora(
+                color: Colors.white,
+                fontSize: 46,
+                fontWeight:
+                    FontWeight.w500,
+              ),
+            ),
+
+            if (pendingAmount > 0) ...[
+
+  const SizedBox(height: 20),
+
+  Text(
+    "PENDING REWARDS",
+    style: GoogleFonts.inter(
+      color: Colors.white70,
+      fontSize: 12,
+      letterSpacing: 2,
+      fontWeight: FontWeight.w600,
+    ),
+  ),
+
+  const SizedBox(height: 12),
+
+  Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: 8,
+    ),
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.15),
+      borderRadius: BorderRadius.circular(30),
+    ),
+    child: Text(
+      "₹${pendingAmount.toStringAsFixed(2)} Awaiting Delivery Confirmation",
+      style: GoogleFonts.inter(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+        fontSize: 12,
+      ),
+    ),
+  ),
+],
+            const SizedBox(height: 25),
+
+            Row(
+              children: [
+
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration:
+                      BoxDecoration(
+                    color: Colors.white
+                        .withOpacity(0.15),
+                    borderRadius:
+                        BorderRadius
+                            .circular(30),
+                  ),
+                  child: Text(
+                    "GladSkin Member",
+                    style:
+                        GoogleFonts.inter(
+                      color: Colors.white,
+                      fontWeight:
+                          FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+
+                const Spacer(),
+
+                const Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   // --- WIDGET 2: Shadowed Redeem Button (Specific to image design) ---
-  Widget _buildRedeemButton(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 55,
-      decoration: BoxDecoration(
-        color: const Color(0xFF0C198E), // Deep Navy from your image
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          // Subtly adding the blue-tinted glow/shadow from the image
-          BoxShadow(
-            color: const Color(0xFF0C198E).withOpacity(0.3),
-            blurRadius: 15,
-            spreadRadius: 2,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: () {
-          // Logic to show a dialog or page to spend points
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent, // Shadow comes from container
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        ),
-        child: Text(
-          "Redeem Points",
-          style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
-        ),
-      ),
-    );
-  }
+Widget _buildRedeemButton(BuildContext context) {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
 
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('Users')
+        .doc(uid)
+        .collection('walletTransactions')
+        .snapshots(),
+    builder: (context, snapshot) {
+
+      double confirmedRewards = 0;
+
+      if (snapshot.hasData) {
+        for (final doc in snapshot.data!.docs) {
+
+          final data =
+              doc.data()
+                  as Map<String, dynamic>;
+
+          final amount =
+              ((data['amount'] ?? 0) as num)
+                  .toDouble();
+
+          final status =
+              data['status'] ?? '';
+
+          final type =
+              data['type'] ?? 'credit';
+
+          if (status == 'credited') {
+
+            if (type == 'credit') {
+              confirmedRewards += amount;
+            }
+
+            if (type == 'debit') {
+              confirmedRewards -= amount;
+            }
+          }
+
+          if (
+              (status == 'pending' ||
+                  status == 'approved') &&
+              type == 'debit') {
+            confirmedRewards -= amount;
+          }
+        }
+      }
+
+      final canRedeem =
+          confirmedRewards >= 1000;
+
+      return SizedBox(
+        width: double.infinity,
+        height: 58,
+        child: ElevatedButton(
+          onPressed: canRedeem
+              ? () => _showRedeemDialog(
+                    context,
+                    confirmedRewards,
+                  )
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: canRedeem
+                ? const Color(0xFF6F0562)
+                : Colors.grey.shade300,
+            disabledBackgroundColor:
+                Colors.grey.shade300,
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(30),
+            ),
+          ),
+          child: Text(
+            canRedeem
+                ? "REDEEM REWARDS"
+                : "MIN ₹1000 REQUIRED",
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Future<void> _showRedeemDialog(
+  BuildContext context,
+  double availableAmount,
+) async {
+
+  final uid =
+      FirebaseAuth.instance.currentUser!.uid;
+
+  final upiController =
+      TextEditingController();
+
+  final amountController =
+      TextEditingController(
+    text:
+        availableAmount.toStringAsFixed(0),
+  );
+
+  await showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(30),
+      ),
+    ),
+    builder: (context) {
+
+      return Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom:
+              MediaQuery.of(context)
+                      .viewInsets
+                      .bottom +
+                  20,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setState) {
+
+            return Column(
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+
+                Text(
+                  "Redeem Rewards",
+                  style:
+                      GoogleFonts.inter(
+                    fontSize: 22,
+                    fontWeight:
+                        FontWeight.w700,
+                        
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                TextField(
+                  controller:
+                      amountController,
+                  keyboardType:
+                      TextInputType.number,
+                  decoration:
+                      const InputDecoration(
+                    labelText:
+                        "Amount",
+                    border:
+                        OutlineInputBorder(),
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                TextField(
+                  controller:
+                      upiController,
+                  decoration:
+                      const InputDecoration(
+                    labelText:
+                        "UPI ID",
+                    border:
+                        OutlineInputBorder(),
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                SizedBox(
+                  width:
+                      double.infinity,
+                  height: 55,
+                  child:
+                      ElevatedButton(
+                    style:
+                        ElevatedButton.styleFrom(
+                      backgroundColor:
+                          const Color(
+                        0xFF6F0562,
+                      ),
+                    ),
+                    onPressed:
+                        () async {
+
+                      final amount =
+                          double.tryParse(
+                                amountController
+                                    .text,
+                              ) ??
+                              0;
+
+                      if (
+                          amount <
+                              1000 ||
+                          amount >
+                              availableAmount) {
+
+                        ScaffoldMessenger.of(
+                                context)
+                            .showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Invalid amount",
+                            ),
+                          ),
+                        );
+
+                        return;
+                      }
+
+                      if (upiController
+                          .text
+                          .trim()
+                          .isEmpty) {
+
+                        ScaffoldMessenger.of(
+                                context)
+                            .showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Enter UPI ID",
+                            ),
+                          ),
+                        );
+
+                        return;
+                      }
+
+                      final withdrawalRef =
+                          FirebaseFirestore
+                              .instance
+                              .collection(
+                                  'rewardWithdrawals')
+                              .doc();
+
+                      final txRef =
+                          FirebaseFirestore
+                              .instance
+                              .collection(
+                                  'Users')
+                              .doc(uid)
+                              .collection(
+                                  'walletTransactions')
+                              .doc();
+
+                      final batch =
+                          FirebaseFirestore
+                              .instance
+                              .batch();
+
+                      batch.set(
+                        withdrawalRef,
+                        {
+
+                          'uid': uid,
+
+                          'amount':
+                              amount,
+
+                          'upiId':
+                              upiController
+                                  .text
+                                  .trim(),
+
+                          'status':
+                              'pending',
+
+                          'createdAt':
+                              FieldValue
+                                  .serverTimestamp(),
+                        },
+                      );
+
+                      batch.set(
+                        txRef,
+                        {
+
+                          'type':
+                              'debit',
+
+                          'source':
+                              'withdrawal_request',
+
+                          'amount':
+                              amount,
+
+                          'status':
+                              'pending',
+
+                          'withdrawalId':
+                              withdrawalRef.id,
+
+                          'createdAt':
+                              FieldValue
+                                  .serverTimestamp(),
+                        },
+                      );
+
+                      await batch
+                          .commit();
+
+                      if (context
+                          .mounted) {
+
+                        Navigator.pop(
+                            context);
+
+                        ScaffoldMessenger.of(
+                                context)
+                            .showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Withdrawal request submitted",
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      "SUBMIT REQUEST",
+                      style: TextStyle(
+                        color: Colors.white
+                      )
+                    ),
+                  ),
+                ),
+
+                const SizedBox(
+                    height: 15),
+              ],
+            );
+          },
+        ),
+      );
+    },
+  );
+}
   // --- WIDGET 3: History Header ---
   Widget _buildHistoryHeader() {
     return Row(
@@ -169,7 +590,12 @@ class LoyaltyPointsPage extends StatelessWidget {
       children: [
         Text(
           "POINTS HISTORY",
-          style: GoogleFonts.inter(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+          style: GoogleFonts.inter(
+            color: Colors.black,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+          ),
         ),
         const Icon(Icons.filter_list_outlined, color: Colors.white60, size: 18),
       ],
@@ -177,28 +603,295 @@ class LoyaltyPointsPage extends StatelessWidget {
   }
 
   // --- WIDGET 4: Empty History Placeholder ---
-  Widget _buildEmptyHistory() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 60),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05), // Subtle overlay
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.history, color: Colors.white30, size: 40),
-          const SizedBox(height: 15),
-          Text(
-            "Your history is looking empty.",
-            style: GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+  Widget _buildTransactionHistory() {
+  final uid =
+      FirebaseAuth.instance.currentUser?.uid;
+
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('Users')
+        .doc(uid)
+        .collection('walletTransactions')
+        .orderBy(
+          'createdAt',
+          descending: true,
+        )
+        .snapshots(),
+    builder: (context, snapshot) {
+
+      if (!snapshot.hasData) {
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      }
+
+      if (snapshot.data!.docs.isEmpty) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            vertical: 40,
           ),
+          child: Column(
+            children: [
+
+              Icon(
+                Icons.workspace_premium_outlined,
+                size: 42,
+                color: Colors.grey.shade400,
+              ),
+
+              const SizedBox(height: 12),
+
+              Text(
+                "No rewards yet",
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                "Start referring friends to earn rewards.",
+                style: GoogleFonts.inter(
+                  color: Colors.grey,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        children:
+            snapshot.data!.docs.map((doc) {
+
+         final data =
+    doc.data() as Map<String, dynamic>;
+
+final amount =
+    ((data['amount'] ?? 0) as num)
+        .toDouble();
+
+final status =
+    data['status'] ?? '';
+
+final source =
+    data['source'] ?? '';
+
+final orderId =
+    data['orderId']?.toString() ?? '';
+
+final type =
+    data['type'] ?? 'credit';
+
+final createdAt =
+    data['createdAt'] as Timestamp?;
+
+String title;
+IconData icon;
+
+switch (source) {
+
+  case 'referral_reward':
+    title = 'Referral Reward';
+    icon = Icons.workspace_premium;
+    break;
+
+  case 'withdrawal_request':
+    title = 'Withdrawal Request';
+    icon = Icons.account_balance_wallet_outlined;
+    break;
+
+  case 'withdrawal_approved':
+    title = 'Withdrawal Paid';
+    icon = Icons.check_circle_outline;
+    break;
+
+  case 'withdrawal_rejected':
+    title = 'Withdrawal Rejected';
+    icon = Icons.cancel_outlined;
+    break;
+
+  default:
+    title = 'Reward Credit';
+    icon = Icons.workspace_premium;
+}
+
+String statusText;
+
+switch (status) {
+  case 'credited':
+    statusText = 'CONFIRMED';
+    break;
+
+  case 'approved':
+    statusText = 'APPROVED';
+    break;
+
+  case 'rejected':
+    statusText = 'REJECTED';
+    break;
+
+  default:
+    statusText = 'PENDING';
+}
+
+final isDebit = type == 'debit';
+
+final amountColor =
+    isDebit
+        ? Colors.red
+        : const Color(0xFF6F0562);
+
+final statusColor =
+    status == 'credited'
+        ? Colors.green
+        : status == 'approved'
+            ? Colors.blue
+            : status == 'rejected'
+                ? Colors.red
+                : Colors.orange;
+          
+
+          
+
+          return Container(
+  margin: const EdgeInsets.only(
+    bottom: 12,
+  ),
+  padding: const EdgeInsets.all(18),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius:
+        BorderRadius.circular(20),
+    border: Border.all(
+      color: Colors.grey.shade200,
+    ),
+  ),
+  child: Row(
+    children: [
+
+      Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: const Color(
+            0xFF6F0562,
+          ).withOpacity(0.08),
+          borderRadius:
+              BorderRadius.circular(14),
+        ),
+        child: Icon(
+          icon,
+          color: const Color(
+            0xFF6F0562,
+          ),
+        ),
+      ),
+
+      const SizedBox(width: 14),
+
+      Expanded(
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 15,
+                fontWeight:
+                    FontWeight.w600,
+                color:
+                    Colors.black87,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            if (orderId.isNotEmpty)
+              Text(
+                'Order #$orderId',
+                style:
+                    GoogleFonts.inter(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+
+            if (createdAt != null)
+              Text(
+                '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}',
+                style:
+                    GoogleFonts.inter(
+                  fontSize: 11,
+                  color: Colors.grey,
+                ),
+              ),
+          ],
+        ),
+      ),
+
+      Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.end,
+        children: [
+
           Text(
-            "Make your first purchase to earn points.",
-            style: GoogleFonts.inter(color: Colors.white30, fontSize: 12),
+            isDebit
+                ? '- ₹${amount.toStringAsFixed(2)}'
+                : '+ ₹${amount.toStringAsFixed(2)}',
+            style:
+                GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight:
+                  FontWeight.w700,
+              color:
+                  amountColor,
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          Container(
+            padding:
+                const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 4,
+            ),
+            decoration:
+                BoxDecoration(
+              color: statusColor
+                  .withOpacity(0.10),
+              borderRadius:
+                  BorderRadius.circular(
+                      30),
+            ),
+            child: Text(
+              statusText,
+              style:
+                  GoogleFonts.inter(
+                color:
+                    statusColor,
+                fontSize: 10,
+                fontWeight:
+                    FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
+    ],
+  ),
+);
+        }).toList(),
+      );
+    },
+  );
+}
 }

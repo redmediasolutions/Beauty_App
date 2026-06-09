@@ -22,6 +22,210 @@ const TAX_PERCENTAGE = 0.05;
 const COD_CHARGE = 60;
 
 // =======================================================
+// 🔐 CALCULATION LOGIC
+// =======================================================
+
+async function calculateCartTotals({
+  uid,
+  paymentMethod,
+  useWallet,
+  couponDiscount = 0,
+}: {
+  uid: string;
+  paymentMethod: string;
+  useWallet: boolean;
+  couponDiscount?: number;
+}) {
+
+  const cartSnap = await admin
+    .firestore()
+    .collection("carts")
+    .doc(uid)
+    .collection("items")
+    .get();
+
+  let subtotal = 0;
+
+  let totalMrp = 0;
+
+  let productSavings = 0;
+
+  let gst18Subtotal = 0;
+  let gst5Subtotal = 0;
+
+  cartSnap.forEach((doc) => {
+
+    const item = doc.data();
+
+    const qty =
+      Number(item.quantity || 1);
+
+    const mrp =
+      Number(item.mrp || 0);
+
+    const salePrice =
+      Number(
+        item.salePrice || mrp
+      );
+
+    const lineTotal =
+      salePrice * qty;
+
+    subtotal += lineTotal;
+
+    totalMrp +=
+      mrp * qty;
+
+    productSavings +=
+      (mrp - salePrice) * qty;
+
+    const taxClass =
+      item.taxClass || "";
+
+    if (
+      taxClass ===
+      "reduced-rate"
+    ) {
+      gst5Subtotal += lineTotal;
+    } else {
+      gst18Subtotal += lineTotal;
+    }
+  });
+
+  const shipping =
+    subtotal <=
+    FREE_SHIPPING_THRESHOLD
+      ? SHIPPING_BELOW_THRESHOLD
+      : SHIPPING_ABOVE_THRESHOLD;
+
+  const aggregateDiscount =
+    couponDiscount;
+
+  const taxableTotal =
+    gst18Subtotal +
+    gst5Subtotal;
+
+  let gst18DiscountShare = 0;
+  let gst5DiscountShare = 0;
+
+  if (
+    taxableTotal > 0 &&
+    aggregateDiscount > 0
+  ) {
+    gst18DiscountShare =
+      aggregateDiscount *
+      (gst18Subtotal /
+        taxableTotal);
+
+    gst5DiscountShare =
+      aggregateDiscount *
+      (gst5Subtotal /
+        taxableTotal);
+  }
+
+  const taxable18 =
+    Math.max(
+      gst18Subtotal -
+        gst18DiscountShare,
+      0
+    );
+
+  const taxable5 =
+    Math.max(
+      gst5Subtotal -
+        gst5DiscountShare,
+      0
+    );
+
+  const gst18 =
+    taxable18 * 0.18;
+
+  const gst5 =
+    taxable5 * 0.05;
+
+  const tax =
+    gst18 + gst5;
+
+  const codCharge =
+    paymentMethod === "cod"
+      ? COD_CHARGE
+      : 0;
+
+  const discountedSubtotal =
+    Math.max(
+      subtotal -
+        aggregateDiscount,
+      0
+    );
+
+  const grossTotal =
+    discountedSubtotal +
+    tax +
+    shipping +
+    codCharge;
+
+  const userDoc =
+    await admin
+      .firestore()
+      .collection("Users")
+      .doc(uid)
+      .get();
+
+  const walletBalance =
+    Number(
+      userDoc.data()
+        ?.walletBalance || 0
+    );
+
+  const walletUsed =
+    useWallet
+      ? Math.min(
+          walletBalance,
+          grossTotal
+        )
+      : 0;
+
+  const finalPayable =
+    grossTotal -
+    walletUsed;
+
+  return {
+    subtotal,
+    totalMrp,
+    productSavings,
+
+    couponDiscount,
+
+    gst18,
+    gst5,
+    tax,
+
+    shipping,
+    codCharge,
+
+    discountedSubtotal,
+
+     // --------------------------------
+
+  // AFTER COUPON + TAX + SHIPPING
+
+  // BEFORE WALLET
+
+  // --------------------------------
+
+  discountedTotal: grossTotal,
+
+    walletBalance,
+    walletUsed,
+
+    grossTotal,
+    finalPayable,
+
+    cartSnap,
+  };
+}
+
+// =======================================================
 // 🔐 RAZORPAY INSTANCE
 // =======================================================
 
@@ -70,6 +274,7 @@ export const getCartPreviewTotals = onCall(
     concurrency: 80,
   },
   async (request) => {
+
     if (!request.auth) {
       throw new Error("Unauthenticated");
     }
@@ -84,63 +289,94 @@ export const getCartPreviewTotals = onCall(
     const useWallet =
       data.useWallet === true;
 
-    const cartSnap = await admin
-      .firestore()
-      .collection("carts")
-      .doc(uid)
-      .collection("items")
-      .get();
+    const couponDiscount =
+      Number(
+        data.couponDiscount || 0
+      );
 
-    let subtotal = 0;
+    // =====================================
+    // USE SAME CALCULATION ENGINE
+    // AS CART + CREATE ORDER
+    // =====================================
 
-    cartSnap.forEach((doc) => {
-      const item = doc.data();
-
-      subtotal +=
-        Number(item.salePrice || 0) *
-        Number(item.quantity || 1);
-    });
-
-    const shipping =
-      subtotal <= FREE_SHIPPING_THRESHOLD
-        ? SHIPPING_BELOW_THRESHOLD
-        : SHIPPING_ABOVE_THRESHOLD;
-
-    const tax = subtotal * TAX_PERCENTAGE;
-
-    const codCharge =
-      paymentMethod === "cod"
-        ? COD_CHARGE
-        : 0;
-
-    const grossTotal =
-      subtotal + shipping + tax + codCharge;
-
-    const userDoc = await admin
-      .firestore()
-      .collection("Users")
-      .doc(uid)
-      .get();
-
-    const walletBalance = Number(
-      userDoc.data()?.walletBalance || 0
-    );
-
-    const walletUsed = useWallet
-      ? Math.min(walletBalance, grossTotal)
-      : 0;
-
-    const finalPayable =
-      grossTotal - walletUsed;
+    const totals =
+      await calculateCartTotals({
+        uid,
+        paymentMethod,
+        useWallet,
+        couponDiscount,
+      });
 
     return {
-      subtotal,
-      shipping,
-      tax,
-      codCharge,
-      walletBalance,
-      walletUsed,
-      finalPayable,
+
+      // ==========================
+      // PRODUCT TOTALS
+      // ==========================
+
+      subtotal:
+        totals.subtotal,
+
+      totalMrp:
+        totals.totalMrp,
+
+      productSavings:
+        totals.productSavings,
+
+      // ==========================
+      // COUPON
+      // ==========================
+
+      couponDiscount:
+        totals.couponDiscount,
+
+      discountedSubtotal:
+        totals.discountedSubtotal,
+
+      // ==========================
+      // GST
+      // ==========================
+
+      gst18:
+        totals.gst18,
+
+      gst5:
+        totals.gst5,
+
+      tax:
+        totals.tax,
+
+      // ==========================
+      // SHIPPING / COD
+      // ==========================
+
+      shipping:
+        totals.shipping,
+
+      codCharge:
+        totals.codCharge,
+
+      // ==========================
+      // WALLET
+      // ==========================
+
+      walletBalance:
+        totals.walletBalance,
+
+      walletUsed:
+        totals.walletUsed,
+
+      // ==========================
+      // TOTALS
+      // ==========================
+
+      grossTotal:
+        totals.grossTotal,
+
+      discountedTotal:
+        totals.discountedTotal,
+
+      finalPayable:
+        totals.finalPayable,
     };
   }
 );
@@ -166,14 +402,10 @@ export const createSecureOrder = onCall(
     // =========================================
 
     if (!request.auth) {
-
-      throw new Error(
-        "Unauthenticated",
-      );
+      throw new Error("Unauthenticated");
     }
 
-    const uid =
-      request.auth.uid;
+    const uid = request.auth.uid;
 
     const data =
       request.data as any;
@@ -190,7 +422,7 @@ export const createSecureOrder = onCall(
 
     const couponDiscount =
       Number(
-        data.couponDiscount || 0,
+        data.couponDiscount || 0
       );
 
     // =========================================
@@ -205,134 +437,35 @@ export const createSecureOrder = onCall(
       data.useWallet === true;
 
     // =========================================
-    // 🛒 FETCH CART
+    // 🧮 CALCULATE TOTALS
     // =========================================
 
-    const cartSnap =
-      await admin
-        .firestore()
-        .collection("carts")
-        .doc(uid)
-        .collection("items")
-        .get();
+    const totals =
+      await calculateCartTotals({
+        uid,
+        paymentMethod,
+        useWallet,
+        couponDiscount,
+      });
+
+    const {
+      subtotal,
+      shipping,
+      tax,
+      codCharge,
+      grossTotal,
+      discountedTotal,
+      walletBalance,
+      walletUsed,
+      finalPayable,
+      cartSnap,
+    } = totals;
 
     if (cartSnap.empty) {
-
       throw new Error(
-        "Cart is empty",
+        "Cart is empty"
       );
     }
-
-    // =========================================
-    // 💰 CALCULATE SUBTOTAL
-    // =========================================
-
-    let subtotal = 0;
-
-    cartSnap.forEach((doc) => {
-
-      const item =
-        doc.data();
-
-      subtotal +=
-        Number(
-          item.salePrice || 0,
-        ) *
-        Number(
-          item.quantity || 1,
-        );
-    });
-
-    // =========================================
-    // 🚚 SHIPPING
-    // =========================================
-
-    const shipping =
-      subtotal <=
-      FREE_SHIPPING_THRESHOLD
-        ? SHIPPING_BELOW_THRESHOLD
-        : SHIPPING_ABOVE_THRESHOLD;
-
-    // =========================================
-    // 🧾 TAX
-    // =========================================
-
-    const tax =
-      Math.round(
-        subtotal *
-          TAX_PERCENTAGE *
-          100,
-      ) / 100;
-
-    // =========================================
-    // 💵 COD CHARGE
-    // =========================================
-
-    const codCharge =
-      paymentMethod === "cod"
-        ? COD_CHARGE
-        : 0;
-
-    // =========================================
-    // 📦 GROSS TOTAL
-    // =========================================
-
-    const grossTotal =
-      subtotal +
-      shipping +
-      tax +
-      codCharge;
-
-    // =========================================
-    // 🎟 APPLY COUPON
-    // =========================================
-
-    const discountedTotal =
-      Math.max(
-        grossTotal -
-          couponDiscount,
-        0,
-      );
-
-    // =========================================
-    // 👛 FETCH WALLET
-    // =========================================
-
-    const userDoc =
-      await admin
-        .firestore()
-        .collection("Users")
-        .doc(uid)
-        .get();
-
-    const walletBalance =
-      Number(
-        userDoc.data()
-          ?.walletBalance || 0,
-      );
-
-    // =========================================
-    // 👛 APPLY WALLET
-    // =========================================
-
-    const walletUsed =
-      useWallet
-        ? Math.min(
-            walletBalance,
-            discountedTotal,
-          )
-        : 0;
-
-    // =========================================
-    // 💳 FINAL PAYABLE
-    // =========================================
-
-    const finalPayable =
-      Math.max(
-        discountedTotal -
-          walletUsed,
-        0,
-      );
 
     // =========================================
     // 💳 CREATE RAZORPAY ORDER
@@ -345,14 +478,12 @@ export const createSecureOrder = onCall(
       null;
 
     if (
-      paymentMethod ===
-        "online" &&
+      paymentMethod === "online" &&
       finalPayable > 0
     ) {
 
       const razorpay =
         new Razorpay({
-
           key_id:
             process.env
               .RAZORPAY_KEY_ID!,
@@ -369,11 +500,11 @@ export const createSecureOrder = onCall(
 
             amount:
               Math.round(
-                finalPayable *
-                  100,
+                finalPayable * 100
               ),
 
-            currency: "INR",
+            currency:
+              "INR",
 
             receipt:
               `gladskin_${Date.now()}`,
@@ -455,14 +586,12 @@ export const createSecureOrder = onCall(
       razorpayAmount,
 
       paymentStatus:
-        paymentMethod ===
-        "cod"
+        paymentMethod === "cod"
           ? "pending"
           : "created",
 
       status:
-        paymentMethod ===
-        "cod"
+        paymentMethod === "cod"
           ? "pending"
           : "payment_pending",
 
@@ -470,29 +599,38 @@ export const createSecureOrder = onCall(
       // 🛒 ITEMS SNAPSHOT
       // =====================================
 
-      items: cartSnap.docs.map((doc) => {
+      items:
+        cartSnap.docs.map(
+          (doc) => {
 
-  const item =
-    doc.data();
+            const item =
+              doc.data();
 
-  return {
+            return {
 
-    productId:
-      item.productId,
+              productId:
+                item.productId,
 
-    name:
-      item.name || "",
+              name:
+                item.name || "",
 
-    image:
-      item.image || "",
+              image:
+                item.image || "",
 
-    quantity:
-      item.quantity || 1,
+              quantity:
+                item.quantity || 1,
 
-    salePrice:
-      item.salePrice || 0,
-  };
-}),
+              salePrice:
+                item.salePrice || 0,
+
+              mrp:
+                item.mrp || 0,
+
+              taxClass:
+                item.taxClass || "",
+            };
+          }
+        ),
 
       createdAt:
         admin.firestore
@@ -526,13 +664,13 @@ export const createSecureOrder = onCall(
 
       grossTotal,
 
+      discountedTotal,
+
       couponId,
 
       couponCode,
 
       couponDiscount,
-
-      discountedTotal,
 
       walletBalance,
 
@@ -597,14 +735,18 @@ export const finalizeOrder = onCall(
         razorpayPaymentId,
         razorpaySignature,
         billing,
-        shipping,
+        shipping: shippingAddress,
       } = data;
 
-      if (!billing || !shipping) {
-        throw new Error(
-          "Billing or Shipping missing"
-        );
-      }
+      if (!billing || !shippingAddress) {
+
+  throw new Error(
+
+    "Billing or Shipping missing"
+
+  );
+
+}
 
       const isOnlinePayment =
         razorpayOrderId &&
@@ -646,434 +788,365 @@ export const finalizeOrder = onCall(
       // 🛒 FETCH CART
       // ===================================================
 
-      const cartRef = admin
-        .firestore()
-        .collection("carts")
-        .doc(uid)
-        .collection("items");
+      // ===================================================
+// 🎟 COUPON DATA
+// ===================================================
 
-      const cartSnap =
-        await cartRef.get();
+const couponId =
+  data.couponId || null;
 
-      if (cartSnap.empty) {
-        throw new Error(
-          "Cart empty"
+const couponCode =
+  data.couponCode || null;
+
+const couponDiscount =
+  Number(
+    data.couponDiscount || 0
+  );
+
+// ===================================================
+// 🧮 CALCULATE TOTALS
+// ===================================================
+
+const totals =
+  await calculateCartTotals({
+    uid,
+    paymentMethod:
+      isOnlinePayment
+        ? "online"
+        : "cod",
+    useWallet,
+    couponDiscount,
+  });
+
+const {
+  subtotal,
+  shipping,
+  tax,
+  codCharge,
+  grossTotal,
+  discountedTotal,
+  walletBalance,
+  walletUsed,
+  finalPayable,
+  cartSnap,
+} = totals;
+
+// ===================================================
+// 👤 USER REF
+// ===================================================
+
+const userRef =
+  admin
+    .firestore()
+    .collection("Users")
+    .doc(uid);
+
+// ===================================================
+// 🎁 REWARD
+// ===================================================
+
+const rewardAmount =
+  Math.round(
+    subtotal *
+      0.20 *
+      100
+  ) / 100;
+
+// ===================================================
+// 🌐 CREATE WOO ORDER
+// ===================================================
+
+const wooOrder =
+  await createWooOrder({
+    uid,
+    cartSnap,
+
+    subtotal,
+
+    shipping,
+
+    tax,
+
+    codCharge,
+
+    walletUsed,
+
+    finalPayable,
+
+    paymentMethod:
+      isOnlinePayment
+        ? "online"
+        : "cod",
+
+    razorpayOrderId,
+    razorpayPaymentId,
+
+    billing,
+
+    shippingAddress,
+
+    couponCode,
+    couponDiscount,
+  });
+
+if (!wooOrder?.id) {
+  throw new Error(
+    "Woo order failed"
+  );
+}
+
+const wooOrderId =
+  wooOrder.id;
+
+// ===================================================
+// 🔥 TRANSACTION
+// ===================================================
+
+await admin
+  .firestore()
+  .runTransaction(
+    async (transaction) => {
+
+      const buyerSnap =
+        await transaction.get(
+          userRef
+        );
+
+      const buyerData =
+        buyerSnap.data();
+
+      let referrerUid = null;
+
+        if (
+          buyerData &&
+          buyerData.referredBy
+        ) {
+
+          const referralCode =
+            buyerData.referredBy;
+
+          const referrerSnap =
+            await admin
+              .firestore()
+              .collection("Users")
+              .where(
+                "referralCode",
+                "==",
+                referralCode
+              )
+              .limit(1)
+              .get();
+
+          if (!referrerSnap.empty) {
+
+            referrerUid =
+              referrerSnap.docs[0].id;
+          }
+}
+
+      // ===============================================
+      // 👛 WALLET DEDUCTION
+      // ===============================================
+
+      if (walletUsed > 0) {
+
+        transaction.update(
+          userRef,
+          {
+            walletBalance:
+              admin.firestore
+                .FieldValue.increment(
+                  -walletUsed
+                ),
+          }
         );
       }
 
-      // ===================================================
-      // 💰 SUBTOTAL
-      // ===================================================
+      // ===============================================
+      // 🧹 CLEAR CART
+      // ===============================================
 
-      let subtotal = 0;
-
-      cartSnap.forEach((doc) => {
-
-        const item =
-          doc.data();
-
-        subtotal +=
-          Number(
-            item.salePrice || 0
-          ) *
-          Number(
-            item.quantity || 1
+      cartSnap.forEach(
+        (doc) => {
+          transaction.delete(
+            doc.ref
           );
-      });
+        }
+      );
 
-      // ===================================================
-      // 💰 TOTALS
-      // ===================================================
+      // ===============================================
+      // 📦 ORDER REF
+      // ===============================================
 
-      const shippingAmount =
-        subtotal <=
-        FREE_SHIPPING_THRESHOLD
-          ? SHIPPING_BELOW_THRESHOLD
-          : SHIPPING_ABOVE_THRESHOLD;
-
-      const tax =
-        subtotal *
-        TAX_PERCENTAGE;
-
-      const codCharge =
-        isOnlinePayment
-          ? 0
-          : COD_CHARGE;
-
-      // ===================================================
-      // 🎟 COUPON
-      // ===================================================
-
-      const couponId =
-        data.couponId || null;
-
-      const couponCode =
-        data.couponCode || null;
-
-      const couponDiscount =
-        Number(
-          data.couponDiscount || 0
-        );
-
-      // ===================================================
-      // 💵 GROSS TOTAL
-      // ===================================================
-
-      const grossTotal =
-        subtotal +
-        shippingAmount +
-        tax +
-        codCharge;
-
-      const discountedTotal =
-        Math.max(
-          grossTotal -
-            couponDiscount,
-          0
-        );
-
-      // ===================================================
-      // 👛 WALLET
-      // ===================================================
-
-      const userRef = admin
-        .firestore()
-        .collection("Users")
-        .doc(uid);
-
-      const userSnap =
-        await userRef.get();
-
-      const userData =
-        userSnap.data() || {};
-
-      const walletBalance =
-        Number(
-          userData.walletBalance || 0
-        );
-
-      const walletUsed =
-        useWallet
-          ? Math.min(
-              walletBalance,
-              discountedTotal
+      const orderRef =
+        admin
+          .firestore()
+          .collection(
+            "Orders"
+          )
+          .doc(
+            String(
+              wooOrderId
             )
-          : 0;
+          );
 
-      const finalPayable =
-        discountedTotal -
-        walletUsed;
+      // ===============================================
+      // 📦 SAVE ORDER
+      // ===============================================
 
-      // ===================================================
-      // 🎁 REWARD
-      // ===================================================
-
-      const rewardAmount =
-        Math.round(
-          subtotal *
-            0.1 *
-            100
-        ) / 100;
-
-      // ===================================================
-      // 🌐 CREATE WOO ORDER
-      // ===================================================
-
-      const wooOrder =
-        await createWooOrder({
+      transaction.set(
+        orderRef,
+        {
           uid,
-          cartSnap,
+
+          wooOrderId,
 
           subtotal,
 
-          shipping:
-            shippingAmount,
+          shipping,
 
           tax,
 
           codCharge,
 
+          grossTotal,
+
+          discountedTotal,
+
+          walletBalance,
+
           walletUsed,
 
           finalPayable,
+
+          couponId,
+
+          couponCode,
+
+          couponDiscount,
 
           paymentMethod:
             isOnlinePayment
               ? "online"
               : "cod",
 
-          razorpayOrderId,
-          razorpayPaymentId,
+          paymentStatus:
+            isOnlinePayment
+              ? "paid"
+              : "pending",
+
+          razorpayOrderId:
+            razorpayOrderId ||
+            null,
+
+          razorpayPaymentId:
+            razorpayPaymentId ||
+            null,
+
+          rewardAmount,
+
+          rewardReleased:
+            false,
+
+          rewardReversed:
+            false,
+          
+          rewardReleasedAt: null,
+
+          referralRewardGivenTo:
+            referrerUid,
+
+          items:
+            cartSnap.docs.map(
+              (doc) => {
+
+                const item =
+                  doc.data();
+
+                return {
+                  productId:
+                    item.productId,
+
+                  name:
+                    item.name || "",
+
+                  image:
+                    item.image || "",
+
+                  quantity:
+                    item.quantity || 1,
+
+                  salePrice:
+                    item.salePrice || 0,
+
+                  mrp:
+                    item.mrp || 0,
+
+                  taxClass:
+                    item.taxClass || "",
+                };
+              }
+            ),
 
           billing,
 
           shippingAddress:
-            shipping,
-
-          couponId,
-          couponCode,
-          couponDiscount,
-          discountedTotal,
-        });
-
-      if (!wooOrder?.id) {
-        throw new Error(
-          "Woo order failed"
-        );
-      }
-
-      const wooOrderId =
-        wooOrder.id;
-
-      // ===================================================
-      // 🔥 TRANSACTION
-      // ===================================================
-
-      await admin
-        .firestore()
-        .runTransaction(
-          async (transaction) => {
-
-            const buyerSnap =
-              await transaction.get(
-                userRef
-              );
-
-            const buyerData =
-              buyerSnap.data();
-
-            let referrerUid =
-              null;
-
-            if (
-              buyerData &&
-              buyerData.referredByUserId
-            ) {
-              referrerUid =
-                buyerData.referredByUserId;
-            }
-
-            // ===============================================
-            // 👛 WALLET DEDUCTION
-            // ===============================================
-
-            if (walletUsed > 0) {
-
-              transaction.update(
-                userRef,
-                {
-                  walletBalance:
-                    admin.firestore
-                      .FieldValue.increment(
-                        -walletUsed
-                      ),
-                }
-              );
-            }
-
-            // ===============================================
-            // 🧹 CLEAR CART
-            // ===============================================
-
-            cartSnap.forEach(
-              (doc) => {
-
-                transaction.delete(
-                  doc.ref
-                );
-              }
-            );
-
-            // ===============================================
-            // 📦 ORDER REF
-            // ===============================================
-
-            const orderRef =
-              admin
-                .firestore()
-                .collection(
-                  "Orders"
-                )
-                .doc(
-                  String(
-                    wooOrderId
-                  )
-                );
-
-            // ===============================================
-            // 📦 SAVE ORDER
-            // ===============================================
-
-            transaction.set(
-              orderRef,
-              {
-                uid,
-
-                wooOrderId,
-
-                subtotal,
-
-                shipping:
-                  shippingAmount,
-
-                tax,
-
-                codCharge,
-
-                grossTotal,
-
-                discountedTotal,
-
-                walletUsed,
-
-                finalPayable,
-
-                // ===================================
-                // 🎟 COUPON DATA
-                // ===================================
-
-                couponId,
-
-                couponCode,
-
-                couponDiscount,
-
-                // ===================================
-                // 💳 PAYMENT
-                // ===================================
-
-                paymentMethod:
-                  isOnlinePayment
-                    ? "online"
-                    : "cod",
-
-                paymentStatus:
-                  isOnlinePayment
-                    ? "paid"
-                    : "pending",
-
-                razorpayOrderId:
-                  razorpayOrderId ||
-                  null,
-
-                razorpayPaymentId:
-                  razorpayPaymentId ||
-                  null,
-
-                // ===================================
-                // 🎁 REWARDS
-                // ===================================
-
-                rewardAmount,
-
-                rewardReleased:
-                  false,
-
-                rewardReversed:
-                  false,
-
-                referralRewardGivenTo:
-                  referrerUid,
-
-                // ===================================
-                // 📦 ITEMS
-                // ===================================
-
-                items: cartSnap.docs.map((doc) => {
-
-  const item = doc.data();
-
-  return {
-
-    productId:
-      item.productId,
-
-    name:
-      item.name || "",
-
-    image:
-      item.image || "",
-
-    quantity:
-      item.quantity || 1,
-
-    salePrice:
-      item.salePrice || 0,
-  };
-}),
-
-                // ===================================
-                // 🏠 ADDRESS
-                // ===================================
-
-                billing,
-
-                shippingAddress:
-                  shipping,
-
-                // ===================================
-                // 🕒 TIMESTAMPS
-                // ===================================
-
-                createdAt:
-                  admin.firestore
-                    .FieldValue.serverTimestamp(),
-
-                updatedAt:
-                  admin.firestore
-                    .FieldValue.serverTimestamp(),
-              }
-            );
-
-            // ===============================================
-            // 🎁 REFERRAL REWARD
-            // ===============================================
-
-            if (
-              referrerUid &&
-              rewardAmount > 0
-            ) {
-
-              const pendingTxRef =
-                admin
-                  .firestore()
-                  .collection(
-                    "Users"
-                  )
-                  .doc(
-                    referrerUid
-                  )
-                  .collection(
-                    "walletTransactions"
-                  )
-                  .doc();
-
-              transaction.set(
-                pendingTxRef,
-                {
-                  type:
-                    "credit",
-
-                  source:
-                    "referral_reward",
-
-                  orderId:
-                    wooOrderId,
-
-                  amount:
-                    rewardAmount,
-
-                  status:
-                    "pending",
-
-                  createdAt:
-                    admin.firestore
-                      .FieldValue.serverTimestamp(),
-                }
-              );
-            }
+            shippingAddress,
+
+          createdAt:
+            admin.firestore
+              .FieldValue.serverTimestamp(),
+
+          updatedAt:
+            admin.firestore
+              .FieldValue.serverTimestamp(),
+        }
+      );
+
+      // ===============================================
+      // 🎁 REFERRAL REWARD
+      // ===============================================
+
+      if (
+        referrerUid &&
+        rewardAmount > 0
+      ) {
+
+        const pendingTxRef =
+  admin
+    .firestore()
+    .collection("Users")
+    .doc(referrerUid)
+    .collection("walletTransactions")
+    .doc(String(wooOrderId));
+
+        transaction.set(
+          pendingTxRef,
+          {
+            type:
+              "credit",
+
+            source:
+              "referral_reward",
+
+            orderId:
+              wooOrderId,
+
+            amount:
+              rewardAmount,
+
+            status:
+              "pending",
+
+            createdAt:
+              admin.firestore
+                .FieldValue.serverTimestamp(),
           }
         );
+      }
+    }
+  );
+     
 
       // ===================================================
       // ✅ SUCCESS
@@ -1108,40 +1181,560 @@ export const wooOrderStatusWebhook =
     {
       cors: false,
       maxInstances: 20,
+      secrets: [
+        "WOO_WEBHOOK_SECRET",
+      ],
     },
-    async (req, res) => {
-      try {
-        const order =
-          req.body;
 
-        if (!order?.id) {
-          res.status(400).send(
-            "Invalid"
+    async (req, res) => {
+
+      console.log("🔥 WEBHOOK HIT");
+      console.log("Headers:", req.headers);
+
+      if (req.rawBody) {
+        console.log(
+          "RawBody:",
+          req.rawBody.toString()
+        );
+      }
+
+      try {
+
+        // ===============================================
+        // 🔐 VERIFY SIGNATURE
+        // ===============================================
+
+        const signature =
+          req.headers[
+            "x-wc-webhook-signature"
+          ] as string;
+
+        console.log(
+          "Received Signature:",
+          signature
+        );
+
+        if (!signature) {
+
+          console.log(
+            "❌ Missing Signature"
           );
+
+          res
+            .status(401)
+            .send("Missing signature");
+
           return;
         }
 
-        await admin
-          .firestore()
-          .collection("Orders")
-          .doc(
-            String(order.id)
-          )
-          .update({
-            status:
-              order.status,
-          });
+        const expectedSignature =
+          crypto
+            .createHmac(
+              "sha256",
+              process.env
+                .WOO_WEBHOOK_SECRET!
+            )
+            .update(req.rawBody)
+            .digest("base64");
 
-        res.status(200).send("OK");
-      } catch (e) {
-        console.error(e);
-
-        res.status(500).send(
-          "Error"
+        console.log(
+          "Secret Exists:",
+          !!process.env.WOO_WEBHOOK_SECRET
         );
+
+        console.log(
+          "Expected Signature:",
+          expectedSignature
+        );
+
+        console.log(
+          "Signature Match:",
+          signature === expectedSignature
+        );
+
+        if (
+          signature !==
+          expectedSignature
+        ) {
+
+          console.error(
+            "❌ Invalid WooCommerce Signature"
+          );
+
+          res
+            .status(401)
+            .send("Invalid signature");
+
+          return;
+        }
+
+        console.log(
+          "✅ Signature Verified"
+        );
+
+        // ===============================================
+        // 📦 ORDER DATA
+        // ===============================================
+
+        const order = req.body;
+
+        console.log(
+          "Incoming Order:",
+          order
+        );
+
+        if (!order?.id) {
+
+          console.log(
+            "❌ Missing Order ID"
+          );
+
+          res
+            .status(400)
+            .send("Invalid payload");
+
+          return;
+        }
+
+        const wooOrderId =
+          String(order.id);
+
+        const wooStatus =
+          order.status;
+
+        console.log(
+          "📦 Woo Order ID:",
+          wooOrderId
+        );
+
+        console.log(
+          "📦 Woo Status:",
+          wooStatus
+        );
+
+        const orderRef =
+          admin
+            .firestore()
+            .collection("Orders")
+            .doc(wooOrderId);
+
+        console.log(
+          "🔍 Looking up Firestore order"
+        );
+
+        const orderSnap =
+          await orderRef.get();
+
+        console.log(
+          "Order Exists:",
+          orderSnap.exists
+        );
+
+        if (!orderSnap.exists) {
+
+          console.log(
+            "❌ Order not found:",
+            wooOrderId
+          );
+
+          res
+            .status(404)
+            .send("Order not found");
+
+          return;
+        }
+
+        const orderData =
+          orderSnap.data();
+
+        console.log(
+          "📄 Order Data:",
+          {
+            rewardAmount:
+              orderData?.rewardAmount,
+
+            referralRewardGivenTo:
+              orderData?.referralRewardGivenTo,
+
+            rewardReleased:
+              orderData?.rewardReleased,
+          }
+        );
+
+        await orderRef.update({
+          status: wooStatus,
+          updatedAt:
+            admin.firestore
+              .FieldValue.serverTimestamp(),
+        });
+
+        console.log(
+          "✅ Order status updated"
+        );
+
+        const rewardAmount =
+          Number(
+            orderData?.rewardAmount || 0
+          );
+
+        const referrerUid =
+          orderData?.referralRewardGivenTo;
+
+        console.log(
+          "🎁 Reward Amount:",
+          rewardAmount
+        );
+
+        console.log(
+          "👤 Referrer UID:",
+          referrerUid
+        );
+
+        console.log(
+          "REWARD CHECK",
+          {
+            wooStatus,
+            rewardAmount,
+            referrerUid,
+            rewardReleased:
+              orderData?.rewardReleased,
+          }
+        );
+
+        // ===============================================
+        // 🎁 RELEASE REFERRAL REWARD
+        // ===============================================
+
+        if (
+          wooStatus === "completed" &&
+          rewardAmount > 0 &&
+          referrerUid
+        ) {
+
+          console.log(
+            "🚀 ENTERING REWARD RELEASE BLOCK"
+          );
+
+          let rewardActuallyCredited =
+            false;
+
+          const referrerRef =
+            admin
+              .firestore()
+              .collection("Users")
+              .doc(referrerUid);
+
+          await admin
+            .firestore()
+            .runTransaction(
+              async (
+                transaction
+              ) => {
+
+                console.log(
+                  "🔄 Transaction Started"
+                );
+
+                const freshOrderSnap =
+                  await transaction.get(
+                    orderRef
+                  );
+
+                const freshOrderData =
+                  freshOrderSnap.data();
+
+                console.log(
+                  "Fresh Order Data:",
+                  {
+                    rewardReleased:
+                      freshOrderData?.rewardReleased,
+                  }
+                );
+
+                if (
+                  !freshOrderData
+                ) {
+
+                  console.log(
+                    "❌ No fresh order data"
+                  );
+
+                  return;
+                }
+
+                if (
+                  freshOrderData
+                    .rewardReleased === true
+                ) {
+
+                  console.log(
+                    "⚠️ Reward already released"
+                  );
+
+                  return;
+                }
+
+                const referrerSnap =
+                  await transaction.get(
+                    referrerRef
+                  );
+
+                console.log(
+                  "👤 Referrer Exists:",
+                  referrerSnap.exists
+                );
+
+                if (
+                  !referrerSnap.exists
+                ) {
+
+                  console.log(
+                    "❌ Referrer not found"
+                  );
+
+                  return;
+                }
+
+                rewardActuallyCredited =
+                  true;
+
+                console.log(
+                  "💰 Crediting Wallet",
+                  {
+                    referrerUid,
+                    rewardAmount,
+                  }
+                );
+
+                transaction.update(
+                  referrerRef,
+                  {
+                    walletBalance:
+                      admin.firestore
+                        .FieldValue.increment(
+                          rewardAmount
+                        ),
+
+                    walletTotalEarned:
+                      admin.firestore
+                        .FieldValue.increment(
+                          rewardAmount
+                        ),
+                  }
+                );
+
+                console.log(
+                  "🔍 Looking for pending referral transaction"
+                );
+
+                const pendingTxQuery =
+                  await admin
+                    .firestore()
+                    .collection("Users")
+                    .doc(referrerUid)
+                    .collection(
+                      "walletTransactions"
+                    )
+                    .where(
+                      "source",
+                      "==",
+                      "referral_reward"
+                    )
+                    .where(
+                      "orderId",
+                      "==",
+                      Number(wooOrderId)
+                    )
+                    .limit(1)
+                    .get();
+
+                console.log(
+                  "Pending Tx Found:",
+                  !pendingTxQuery.empty
+                );
+
+                if (
+                  !pendingTxQuery.empty
+                ) {
+
+                  transaction.update(
+                    pendingTxQuery
+                      .docs[0]
+                      .ref,
+                    {
+                      status:
+                        "credited",
+
+                      creditedAt:
+                        admin.firestore
+                          .FieldValue.serverTimestamp(),
+                    }
+                  );
+
+                  console.log(
+                    "✅ Pending referral transaction updated"
+                  );
+                }
+
+                console.log(
+                  "✅ Marking reward released"
+                );
+
+                transaction.update(
+                  orderRef,
+                  {
+                    rewardReleased:
+                      true,
+
+                    rewardReleasedAt:
+                      admin.firestore
+                        .FieldValue.serverTimestamp(),
+                  }
+                );
+              }
+            );
+
+          console.log(
+            "🏁 Transaction Completed"
+          );
+
+          console.log(
+            "Reward Actually Credited:",
+            rewardActuallyCredited
+          );
+
+          if (
+            rewardActuallyCredited
+          ) {
+
+            console.log(
+              "📲 Sending Reward Push"
+            );
+
+            await sendRewardPush(
+              referrerUid,
+              rewardAmount,
+              wooOrderId
+            );
+
+            console.log(
+              "✅ Reward Push Sent"
+            );
+          }
+
+          console.log(
+            "🎉 Referral Reward Credited Successfully"
+          );
+
+          res
+            .status(200)
+            .send(
+              "Referral reward credited"
+            );
+
+          return;
+        }
+
+        console.log(
+          "ℹ️ Reward conditions not met"
+        );
+
+        res
+          .status(200)
+          .send("OK");
+
+      } catch (e) {
+
+        console.error(
+          "❌ Webhook Error:",
+          e
+        );
+
+        res
+          .status(500)
+          .send("Error");
       }
     }
   );
+
+  async function sendRewardPush(
+  uid: string,
+  amount: number,
+  orderId: string,
+) {
+
+  const userSnap =
+    await admin
+      .firestore()
+      .collection("Users")
+      .doc(uid)
+      .get();
+
+  if (!userSnap.exists) {
+    return;
+  }
+
+  const fcmToken =
+    userSnap.data()
+      ?.fcmToken;
+
+  if (!fcmToken) {
+    return;
+  }
+
+  await admin
+    .messaging()
+    .send({
+
+      token:
+        fcmToken,
+
+      notification: {
+
+        title:
+          "🎉 Reward Credited",
+
+        body:
+          `₹${amount} has been added to your wallet after successful delivery.`,
+      },
+
+      data: {
+
+        type:
+          "reward_credit",
+
+        orderId:
+          String(orderId),
+
+        amount:
+          String(amount),
+      },
+
+      android: {
+
+        priority:
+          "high",
+      },
+
+      apns: {
+
+        payload: {
+
+          aps: {
+
+            sound:
+              "default",
+          },
+        },
+      },
+    });
+
+  console.log(
+    "📲 Reward Push Sent:",
+    uid,
+    amount
+  );
+}
 
 // =======================================================
 // 🌐 CREATE WOO ORDER

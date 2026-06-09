@@ -25,10 +25,10 @@ class ActiveRoutiencard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Your Active\nRoutine",
+                "Your Active\nPurchases",
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: const Color(0xFF5E2A66),
-                  fontSize: 28,
+                  fontSize: 22,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -74,7 +74,7 @@ class ActiveRoutiencard extends StatelessWidget {
                 .snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text("No products in routine"));
+                return const Center(child: Text("No products in Cart"));
               }
 
               final cartItems = snapshot.data!.docs;

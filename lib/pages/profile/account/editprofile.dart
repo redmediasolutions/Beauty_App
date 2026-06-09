@@ -26,72 +26,98 @@ class _EditprofileState extends State<Editprofile> {
   }
 
   // 2. Load existing data so the user doesn't have to re-type everything
-  void _loadUserData() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      setState(() {
-        _nameController.text = user.displayName ?? "";
-        _emailController.text = user.email ?? "";
-      });
-      
-      // Fetch the phone number from Firestore since it's not in Firebase Auth by default
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get()
-          .then((doc) {
-        if (doc.exists && mounted) {
-          setState(() {
-            _phoneController.text = doc.data()?['phone'] ?? "";
-          });
-        }
-      });
-    }
+void _loadUserData() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  _nameController.text = user.displayName ?? "";
+
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data()!;
+
+    _nameController.text =
+        data['name'] ?? user.displayName ?? "";
+
+    _emailController.text =
+        data['email'] ?? user.email ?? "";
+
+    _phoneController.text =
+        data['phoneNumber'] ??
+        data['phone'] ??
+        user.phoneNumber ??
+        "";
+  } catch (e) {
+    debugPrint("Profile load error: $e");
   }
+}
 
   // 3. The logic to save data to the 'users' table
   Future<void> _saveProfile() async {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter your name")),
-      );
-      return;
+  if (_nameController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Please enter your name"),
+      ),
+    );
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception("User not logged in");
     }
 
-    setState(() => _isLoading = true);
+    await user.updateDisplayName(
+      _nameController.text.trim(),
+    );
 
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        // Update Firebase Auth Display Name (for the app headers)
-        await user.updateDisplayName(_nameController.text.trim());
+    await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .set({
+      'uid': user.uid,
+      'name': _nameController.text.trim(),
+      'email': _emailController.text.trim(),
+      'phoneNumber': _phoneController.text.trim(),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
-        // Update the 'users' table in Firestore
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim().toLowerCase(),
-          'phone': _phoneController.text.trim(),
-          'lastUpdated': FieldValue.serverTimestamp(),
-          'uid': user.uid,
-        }, SetOptions(merge: true)); // Merge prevents deleting other fields like 'points'
+    if (!mounted) return;
 
-        if (mounted) {
-          Navigator.pop(context); // Go back to Profile Page
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile updated successfully!")),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}")),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Profile updated successfully"),
+      ),
+    );
+
+    context.pop();
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceAll('Exception: ', ''),
+        ),
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -126,20 +152,41 @@ class _EditprofileState extends State<Editprofile> {
             ),
             const SizedBox(height: 40),
             
-            _buildField("Full Name", _nameController),
-            const SizedBox(height: 15),
-            _buildField("Email", _emailController),
-            const SizedBox(height: 15),
-            _buildField("Referral Phone (optional)", _phoneController),
+            _buildField(
+  label: "Full Name",
+  controller: _nameController,
+  icon: Icons.person_outline,
+),
+
+const SizedBox(height: 16),
+
+_buildField(
+  label: "Email Address",
+  controller: _emailController,
+  icon: Icons.email_outlined,
+),
+
+const SizedBox(height: 16),
+
+_buildField(
+  label: "Mobile Number",
+  controller: _phoneController,
+  icon: Icons.phone_outlined,
+  enabled: false,
+),
             
             const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Optional • Leave blank if not applicable",
-                style: GoogleFonts.inter(color: Colors.black45, fontSize: 13),
-              ),
-            ),
+          Align(
+  alignment: Alignment.centerLeft,
+  child: Text(
+    "This mobile number is used to sign in to your account and cannot be changed.",
+    style: GoogleFonts.inter(
+      color: Colors.black45,
+      fontSize: 13,
+      height: 1.4,
+    ),
+  ),
+),
             
             const SizedBox(height: 40),
             
@@ -178,20 +225,48 @@ class _EditprofileState extends State<Editprofile> {
     );
   }
 
-  Widget _buildField(String hint, TextEditingController controller) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.inter(color: Colors.black38, fontSize: 15),
-        filled: true,
-        fillColor: const Color(0xFFF3F3F3),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide.none,
+  Widget _buildField({
+  required String label,
+  required TextEditingController controller,
+  required IconData icon,
+  bool enabled = true,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       ),
-    );
-  }
+
+      const SizedBox(height: 8),
+
+      TextField(
+        controller: controller,
+        enabled: enabled,
+        style: GoogleFonts.inter(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon),
+          filled: true,
+          fillColor: const Color(0xFFF8F8F8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+        ),
+      ),
+    ],
+  );
+}
 }

@@ -45,6 +45,7 @@ class _AddressPageState extends State<AddressPage> {
             child: ElevatedButton(
               onPressed: _openAddAddressSheet,
               style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
                 backgroundColor: const Color(0xFF6F0562),
                 minimumSize: const Size(double.infinity, 55),
                 shape: RoundedRectangleBorder(
@@ -206,7 +207,10 @@ class _AddressPageState extends State<AddressPage> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text("Save Address"),
+                  child: const Text("Save Address",
+                  style: TextStyle(
+                    color:Colors.white
+                  ),),
                 ),
               ],
             ),

@@ -24,7 +24,7 @@ class AccountSettings extends StatelessWidget {
         ),
         _settingsTile(
           icon: Icons.person_outline,
-          title: "Create Profile",
+          title: "Update Profile",
           isActive: false,
           onTap: () {
            context.push('/editprofile');

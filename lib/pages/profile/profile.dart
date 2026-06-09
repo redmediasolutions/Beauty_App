@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glowfit/Auth/mobilelogin.dart';
+import 'package:glowfit/components/primarheader.dart';
 import 'package:glowfit/pages/profile/account/account_settings.dart';
 import 'package:glowfit/pages/profile/active_routiencard.dart';
 import 'package:glowfit/pages/profile/orderlist.dart';
@@ -14,8 +15,7 @@ class Profile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return PrimaryHeader(
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -27,14 +27,17 @@ class Profile extends StatelessWidget {
                 // --- Header ---
                 Text(
                   'Profile',
-                  style: GoogleFonts.tenorSans(
-                    fontSize: 48,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
+                  style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                fontSize: 25,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -1.5,
+                                color: Colors.black,
+                              ),
+                        ),
 
                 const SizedBox(height: 20),
-                Center(child: ProfileHeader()),
+                ProfileHeader(),
                 //================Active Routine====================
                 const SizedBox(height: 35),
                 ActiveRoutiencard(),

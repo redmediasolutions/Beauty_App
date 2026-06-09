@@ -10,101 +10,173 @@ class ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    // Logic to get full date
     final String fullDate = user?.metadata.creationTime != null
         ? "${_getMonth(user!.metadata.creationTime!.month)} ${user.metadata.creationTime!.year}"
         : "March 2026";
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // --- Profile Image with Glow ---
-        Container(
+    return StreamBuilder<DocumentSnapshot>(
+      stream: user?.uid != null
+          ? FirebaseFirestore.instance
+              .collection('users')
+              .doc(user?.uid)
+              .snapshots()
+          : const Stream.empty(),
+      builder: (context, snapshot) {
+        String displayName = user?.displayName ?? "Guest User";
+        int loyaltyPoints = 450;
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+
+          if (data != null) {
+            if ((data['name'] ?? '').toString().isNotEmpty) {
+              displayName = data['name'];
+            }
+
+            if (data['points'] != null) {
+              loyaltyPoints = data['points'];
+            }
+          }
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 0),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF8A206E).withOpacity(0.2),
-                blurRadius: 50,
-                spreadRadius: 20,
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(60),
-            child: Container(
-              width: 120,
-              height: 120,
-              color: const Color(0xFF1A1A1A),
-              child: Image.network(
-                user?.photoURL ??
-                    'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.person, color: Colors.white, size: 50),
+          child: Row(
+            children: [
+              /// PROFILE IMAGE
+              Container(
+                width: 72,
+                height: 72,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF6F0562),
+                      Color(0xFFC06A83),
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: ClipOval(
+                    child: Image.network(
+                      user?.photoURL ??
+                          'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+                      width: 68,
+                      height: 68,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.person,
+                        size: 34,
+                        color: Color(0xFF6F0562),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
 
-        const SizedBox(height: 10),
+              const SizedBox(width: 16),
 
-        // ---  Name Loader ---
-        StreamBuilder<DocumentSnapshot>(
-          
-          stream: user?.uid != null 
-              ? FirebaseFirestore.instance.collection('users').doc(user!.uid).snapshots()
-              : const Stream.empty(),
-          builder: (context, snapshot) {
-            String displayName = "Guest User";
+              /// USER DETAILS
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.lora(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1D212C),
+                      ),
+                    ),
 
-            if (snapshot.hasData && snapshot.data!.exists) {
-             
-              final data = snapshot.data!.data() as Map<String, dynamic>?;
-              
-              if (data != null && data.containsKey('name')) {
-                displayName = data['name'];
-              } else {
-                displayName = user?.displayName ?? "Guest User";
-              }
-            } else {
-              
-              displayName = user?.displayName ?? "Guest User";
-            }
+                    const SizedBox(height: 4),
 
-            return Text(
-              displayName,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.lora(
-                fontSize: 32,
-                fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
-                color: Colors.black,
+                    Text(
+                      "Member since $fullDate",
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8EEF7),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Text(
+                        "$loyaltyPoints Loyalty Points",
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF6F0562),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            );
-          },
-        ),
 
-        const SizedBox(height: 8),
-
-        Text(
-          "Member since $fullDate • 450 Points",
-          style: GoogleFonts.inter(
-            color: Colors.black54,
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
+              /// CHEVRON
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: Colors.grey,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 
   String _getMonth(int month) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
+
     return months[month - 1];
   }
 }
