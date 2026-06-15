@@ -99,6 +99,7 @@ return filtered
 }
 
 //======================= FETCH SINGLE PRODUCT DETAIL FUNCTION =======================
+
 static Future<ProductDetail?> fetchSingleProductDetail(
   String productId,
 ) async {
@@ -115,15 +116,21 @@ static Future<ProductDetail?> fetchSingleProductDetail(
       final Map<String, dynamic> json =
           jsonDecode(response.body) as Map<String, dynamic>;
 
-      /// ✅ FILTER: ONLY CATEGORY 41
-      final categories = json['categories'] as List?;
-     if (!_isAllowedProduct(json)) {
-  return null;
-}
+      // 🔥 PRINT COMPLETE PRODUCT PAYLOAD
+      debugPrint(
+        const JsonEncoder.withIndent('  ').convert(json),
+      );
+
+      if (!_isAllowedProduct(json)) {
+        return null;
+      }
 
       return ProductDetail.fromJson(json);
     }
-  } catch (_) {}
+  } catch (e, stack) {
+    debugPrint("Product fetch error: $e");
+    debugPrint("$stack");
+  }
 
   return null;
 }

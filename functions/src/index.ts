@@ -15,6 +15,8 @@ export {
   wooOrderStatusWebhook,
 } from "./cartfunctions";
 
+export * from "./notificationfunctions";
+
 // =======================================================
 // 🔥 INIT
 // =======================================================

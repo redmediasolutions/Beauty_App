@@ -1,7 +1,7 @@
 name: glowfit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.2+13
+version: 1.0.3+14
 
 environment:
   sdk: ^3.11.0
@@ -29,6 +29,8 @@ dependencies:
   http: ^1.6.0
   algolia_helper_flutter: ^1.6.0
   algoliasearch: ^1.49.1
+  firebase_messaging: ^16.3.0
+  flutter_local_notifications: ^22.0.0
 
 dev_dependencies:
   flutter_test:

@@ -2,17 +2,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:glowfit/firebase_options.dart';
 import 'package:glowfit/services/gorouter.dart';
+import 'package:glowfit/services/pnsservice.dart';
 import 'package:glowfit/services/remoteconfig.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ FIRST initialize Firebase
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // ✅ THEN use Remote Config
+  await PushNotificationService.init();
+
   await RemoteConfigService.init();
 
   runApp(const MainApp());

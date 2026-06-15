@@ -81,6 +81,12 @@ class _ProductsViewState extends State<ProductsView> {
         });
       } else {
         /// ➕ CREATE NEW ITEM
+        print("========== ADD TO CART ==========");
+
+print("Product: ${p.name}");
+print("TaxRate: ${p.gstRate}");
+
+print("================================");
         await cartItemRef.set({
   'productId': p.id,
 
@@ -100,10 +106,7 @@ class _ProductsViewState extends State<ProductsView> {
   'salePrice':
       p.salePrice ?? p.price,
 
-  // GST INFO
-  'taxClass': p.taxClass,
-
-  'taxRate': p.taxRate,
+  'taxRate': p.gstRate,
 
   'quantity': quantity,
 

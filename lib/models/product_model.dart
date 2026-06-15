@@ -24,6 +24,7 @@ class Productsmodel {
 
   final String? working;
 
+
   final double? regularPrice;
 
   final double? salePrice;

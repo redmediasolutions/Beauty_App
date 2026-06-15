@@ -84,30 +84,57 @@ class LoyaltyPointsPage extends StatelessWidget {
         return const SizedBox();
       }
 
-      double confirmedAmount = 0;
-      double pendingAmount = 0;
+     double confirmedAmount = 0;
+double pendingAmount = 0;
 
-      for (final doc in txSnapshot.data!.docs) {
+for (final doc in txSnapshot.data!.docs) {
 
-        final data =
-            doc.data()
-                as Map<String, dynamic>;
+  final data =
+      doc.data()
+          as Map<String, dynamic>;
 
-        final amount =
-            ((data['amount'] ?? 0) as num)
-                .toDouble();
+  final amount =
+      ((data['amount'] ?? 0) as num)
+          .toDouble();
 
-        final status =
-            data['status'] ?? '';
+  final status =
+      data['status'] ?? '';
 
-        if (status == 'credited') {
-          confirmedAmount += amount;
-        }
+  final source =
+      data['source'] ?? '';
 
-        if (status == 'pending') {
-          pendingAmount += amount;
-        }
-      }
+  final type =
+      data['type'] ?? 'credit';
+
+  /// AVAILABLE BALANCE
+
+  if (status == 'credited') {
+
+    if (type == 'credit') {
+      confirmedAmount += amount;
+    }
+
+    if (type == 'debit') {
+      confirmedAmount -= amount;
+    }
+  }
+
+  /// Once approved, remove it from balance immediately
+
+  if (status == 'approved' &&
+      type == 'debit') {
+    confirmedAmount -= amount;
+  }
+
+  /// Pending referral rewards only
+
+  if (status == 'pending' &&
+      type == 'credit' &&
+      source != 'withdrawal_request') {
+
+    pendingAmount += amount;
+  }
+}
 
       return Container(
         width: double.infinity,

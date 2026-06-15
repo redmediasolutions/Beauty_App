@@ -18,8 +18,6 @@ import axios from "axios";
 const FREE_SHIPPING_THRESHOLD = 499;
 const SHIPPING_BELOW_THRESHOLD = 49;
 const SHIPPING_ABOVE_THRESHOLD = 0;
-const TAX_PERCENTAGE = 0.05;
-const COD_CHARGE = 60;
 
 // =======================================================
 // 🔐 CALCULATION LOGIC
@@ -45,13 +43,11 @@ async function calculateCartTotals({
     .get();
 
   let subtotal = 0;
-
   let totalMrp = 0;
-
   let productSavings = 0;
 
-  let gst18Subtotal = 0;
-  let gst5Subtotal = 0;
+  // Dynamic GST buckets
+  const gstSubtotals: Record<number, number> = {};
 
   cartSnap.forEach((doc) => {
 
@@ -64,8 +60,13 @@ async function calculateCartTotals({
       Number(item.mrp || 0);
 
     const salePrice =
+      Number(item.salePrice || mrp);
+
+    const gstRate =
       Number(
-        item.salePrice || mrp
+        item.TaxRate ??
+        item.taxRate ??
+        0
       );
 
     const lineTotal =
@@ -79,90 +80,145 @@ async function calculateCartTotals({
     productSavings +=
       (mrp - salePrice) * qty;
 
-    const taxClass =
-      item.taxClass || "";
+    gstSubtotals[gstRate] =
+      (gstSubtotals[gstRate] || 0) +
+      lineTotal;
 
-    if (
-      taxClass ===
-      "reduced-rate"
-    ) {
-      gst5Subtotal += lineTotal;
-    } else {
-      gst18Subtotal += lineTotal;
-    }
+    console.log(
+      `${item.name} => GST ${gstRate}% => ₹${lineTotal}`
+    );
   });
 
+  // =====================================
+  // SHIPPING
+  // =====================================
+
   const shipping =
-    subtotal <=
-    FREE_SHIPPING_THRESHOLD
+    subtotal <= FREE_SHIPPING_THRESHOLD
       ? SHIPPING_BELOW_THRESHOLD
       : SHIPPING_ABOVE_THRESHOLD;
+
+  // =====================================
+  // COUPON
+  // =====================================
 
   const aggregateDiscount =
     couponDiscount;
 
   const taxableTotal =
-    gst18Subtotal +
-    gst5Subtotal;
+    Object.values(gstSubtotals)
+      .reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      );
 
-  let gst18DiscountShare = 0;
-  let gst5DiscountShare = 0;
+  const taxableBreakup:
+    Record<number, number> = {};
 
-  if (
-    taxableTotal > 0 &&
-    aggregateDiscount > 0
+  const gstBreakup:
+    Record<number, number> = {};
+
+  let tax = 0;
+
+  for (
+    const [rateStr, amount]
+    of Object.entries(
+      gstSubtotals
+    )
   ) {
-    gst18DiscountShare =
-      aggregateDiscount *
-      (gst18Subtotal /
-        taxableTotal);
 
-    gst5DiscountShare =
-      aggregateDiscount *
-      (gst5Subtotal /
-        taxableTotal);
+    const rate =
+      Number(rateStr);
+
+    const discountShare =
+      taxableTotal > 0
+        ? aggregateDiscount *
+          (amount /
+            taxableTotal)
+        : 0;
+
+    const taxableAmount =
+      Math.max(
+        amount -
+          discountShare,
+        0
+      );
+
+    const gstAmount =
+      Math.round(
+        taxableAmount *
+          (rate / 100) *
+          100
+      ) / 100;
+
+    taxableBreakup[rate] =
+      Math.round(
+        taxableAmount * 100
+      ) / 100;
+
+    gstBreakup[rate] =
+      gstAmount;
+
+    tax += gstAmount;
   }
 
+  tax =
+    Math.round(
+      tax * 100
+    ) / 100;
+
+  // =====================================
+  // LEGACY VALUES
+  // =====================================
+
   const taxable18 =
-    Math.max(
-      gst18Subtotal -
-        gst18DiscountShare,
-      0
-    );
+    taxableBreakup[18] || 0;
 
   const taxable5 =
-    Math.max(
-      gst5Subtotal -
-        gst5DiscountShare,
-      0
-    );
+    taxableBreakup[5] || 0;
 
   const gst18 =
-    taxable18 * 0.18;
+    gstBreakup[18] || 0;
 
   const gst5 =
-    taxable5 * 0.05;
+    gstBreakup[5] || 0;
 
-  const tax =
-    gst18 + gst5;
+  // =====================================
+  // COD
+  // =====================================
+
+  const discountedSubtotal =
+    Math.round(
+      Math.max(
+        subtotal -
+          aggregateDiscount,
+        0
+      ) * 100
+    ) / 100;
 
   const codCharge =
     paymentMethod === "cod"
-      ? COD_CHARGE
+      ? (
+          discountedSubtotal >= 500
+            ? 29
+            : 49
+        )
       : 0;
 
-  const discountedSubtotal =
-    Math.max(
-      subtotal -
-        aggregateDiscount,
-      0
-    );
+  // =====================================
+  // TOTALS
+  // =====================================
 
   const grossTotal =
-    discountedSubtotal +
-    tax +
-    shipping +
-    codCharge;
+    Math.round(
+      (
+        discountedSubtotal +
+        tax +
+        shipping +
+        codCharge
+      ) * 100
+    ) / 100;
 
   const userDoc =
     await admin
@@ -186,39 +242,54 @@ async function calculateCartTotals({
       : 0;
 
   const finalPayable =
-    grossTotal -
-    walletUsed;
+    Math.round(
+      (
+        grossTotal -
+        walletUsed
+      ) * 100
+    ) / 100;
 
   return {
+
     subtotal,
+
     totalMrp,
+
     productSavings,
+
+    gstSubtotals,
+
+    taxableBreakup,
+
+    gstBreakup,
+
+    taxable18,
+
+    taxable5,
+
+    gst18,
+
+    gst5,
+
+    tax,
 
     couponDiscount,
 
-    gst18,
-    gst5,
-    tax,
-
     shipping,
+
     codCharge,
 
     discountedSubtotal,
 
-     // --------------------------------
-
-  // AFTER COUPON + TAX + SHIPPING
-
-  // BEFORE WALLET
-
-  // --------------------------------
-
-  discountedTotal: grossTotal,
+    discountedTotal:
+      grossTotal,
 
     walletBalance,
+
     walletUsed,
 
     grossTotal,
+
     finalPayable,
 
     cartSnap,
@@ -234,34 +305,39 @@ async function calculateCartTotals({
 // =======================================================
 
 export const getCartRates = onCall(
-  {
-    maxInstances: 10,
-    concurrency: 80,
-  },
-  async (request) => {
-    const data = request.data as any;
 
-    const paymentMethod =
-      data.paymentMethod || "online";
+  {
+
+    maxInstances: 10,
+
+    concurrency: 80,
+
+  },
+
+  async (request) => {
 
     return {
+
       freeShippingThreshold:
+
         FREE_SHIPPING_THRESHOLD,
 
       shippingBelowThreshold:
+
         SHIPPING_BELOW_THRESHOLD,
 
       shippingAboveThreshold:
+
         SHIPPING_ABOVE_THRESHOLD,
 
-      taxPercentage: TAX_PERCENTAGE,
+      codChargeBelow500: 49,
 
-      codCharge:
-        paymentMethod === "cod"
-          ? COD_CHARGE
-          : 0,
+      codChargeAbove500: 29,
+
     };
+
   }
+
 );
 
 // =======================================================
@@ -289,11 +365,12 @@ export const getCartPreviewTotals = onCall(
     const useWallet =
       data.useWallet === true;
 
-    const couponDiscount =
-      Number(
-        data.couponDiscount || 0
-      );
-
+  const couponDiscount =
+  Math.round(
+    Number(
+      data.couponDiscount || 0
+    ) * 100
+  ) / 100;
     // =====================================
     // USE SAME CALCULATION ENGINE
     // AS CART + CREATE ORDER
@@ -342,8 +419,20 @@ export const getCartPreviewTotals = onCall(
       gst5:
         totals.gst5,
 
+      taxable18: totals.taxable18,
+      
+      taxable5: totals.taxable5,
+
       tax:
         totals.tax,
+
+      gstBreakup:
+
+  totals.gstBreakup,
+
+taxableBreakup:
+
+  totals.taxableBreakup,
 
       // ==========================
       // SHIPPING / COD
@@ -421,9 +510,11 @@ export const createSecureOrder = onCall(
       data.couponCode || null;
 
     const couponDiscount =
-      Number(
-        data.couponDiscount || 0
-      );
+  Math.round(
+    Number(
+      data.couponDiscount || 0
+    ) * 100
+  ) / 100;
 
     // =========================================
     // 💳 PAYMENT
@@ -541,13 +632,17 @@ export const createSecureOrder = onCall(
 
     await orderRef.set({
 
-      uid,
+  uid,
 
-      subtotal,
+  subtotal,
 
-      shipping,
+  taxableBreakup:
 
-      tax,
+    totals.taxableBreakup,
+
+  shipping,
+
+  tax,
 
       codCharge,
 
@@ -628,6 +723,19 @@ export const createSecureOrder = onCall(
 
               taxClass:
                 item.taxClass || "",
+
+              taxRate:
+
+  Number(
+
+    item.TaxRate ??
+
+    item.taxRate ??
+
+    0
+
+  ),
+
             };
           }
         ),
@@ -799,9 +907,11 @@ const couponCode =
   data.couponCode || null;
 
 const couponDiscount =
-  Number(
-    data.couponDiscount || 0
-  );
+  Math.round(
+    Number(
+      data.couponDiscount || 0
+    ) * 100
+  ) / 100;
 
 // ===================================================
 // 🧮 CALCULATE TOTALS
@@ -821,6 +931,10 @@ const totals =
 const {
   subtotal,
   shipping,
+
+ taxableBreakup,
+
+  gstBreakup,
   tax,
   codCharge,
   grossTotal,
@@ -865,8 +979,11 @@ const wooOrder =
 
     shipping,
 
-    tax,
+  taxableBreakup,
 
+  gstBreakup,
+
+  tax,
     codCharge,
 
     walletUsed,
@@ -1005,6 +1122,10 @@ await admin
 
           shipping,
 
+         gstBreakup,
+
+  taxableBreakup,
+
           tax,
 
           codCharge,
@@ -1064,27 +1185,22 @@ await admin
                   doc.data();
 
                 return {
-                  productId:
-                    item.productId,
+  productId: item.productId,
+  name: item.name || "",
+  image: item.image || "",
+  quantity: item.quantity || 1,
+  salePrice: item.salePrice || 0,
+  mrp: item.mrp || 0,
 
-                  name:
-                    item.name || "",
+  taxClass: item.taxClass || "",
 
-                  image:
-                    item.image || "",
-
-                  quantity:
-                    item.quantity || 1,
-
-                  salePrice:
-                    item.salePrice || 0,
-
-                  mrp:
-                    item.mrp || 0,
-
-                  taxClass:
-                    item.taxClass || "",
-                };
+  taxRate:
+    Number(
+      item.TaxRate ??
+      item.taxRate ??
+      0
+    ),
+};
               }
             ),
 
@@ -1745,209 +1861,225 @@ async function createWooOrder({
   cartSnap,
   subtotal,
   shipping,
+
+  taxableBreakup,
+  gstBreakup,
+
   tax,
+
   codCharge,
   walletUsed,
   finalPayable,
+
   paymentMethod,
+
   razorpayOrderId,
   razorpayPaymentId,
+
   billing,
   shippingAddress,
+
   couponCode,
   couponDiscount,
 }: any): Promise<any> {
+
   const lineItems: any[] = [];
 
   cartSnap.forEach((doc: any) => {
     const item = doc.data();
 
     lineItems.push({
-      product_id:
-        item.productId,
-
-      quantity:
-        item.quantity || 1,
+      product_id: item.productId,
+      quantity: item.quantity || 1,
     });
   });
 
-  const feeLines = [];
+  const feeLines: any[] = [];
 
-// ========================================
+  // ========================================
+  // COUPON DISCOUNT
+  // ========================================
 
-// 🎟 COUPON DISCOUNT
+  if (couponDiscount > 0) {
+    feeLines.push({
+      name: `Coupon (${couponCode})`,
+      total: (-couponDiscount).toFixed(2),
+      tax_status: "none",
+    });
+  }
 
-// ========================================
-
-if (couponDiscount > 0) {
-
-  feeLines.push({
-
-    name:
-
-      `Coupon (${couponCode})`,
-
-    total:
-
-      (-couponDiscount).toFixed(2),
-
-    tax_status:
-
-      "none",
-
-  });
-
-}
-  
+  // ========================================
+  // WALLET DISCOUNT
+  // ========================================
 
   if (walletUsed > 0) {
     feeLines.push({
-      name:
-        "Wallet Discount",
-
-      total:
-        (-walletUsed).toFixed(
-          2
-        ),
-
-      tax_status:
-        "none",
+      name: "Wallet Discount",
+      total: (-walletUsed).toFixed(2),
+      tax_status: "none",
     });
   }
+
+  // ========================================
+  // COD CHARGE
+  // ========================================
 
   if (codCharge > 0) {
     feeLines.push({
-      name:
-        "Cash on Delivery Charges",
-
-      total:
-        codCharge.toFixed(2),
-
-      tax_status:
-        "none",
+      name: "Cash on Delivery Charges",
+      total: codCharge.toFixed(2),
+      tax_status: "none",
     });
   }
 
+  // ========================================
+  // CREATE ORDER
+  // ========================================
+
   const body = {
+    prices_include_tax: false,
     payment_method:
-      paymentMethod ===
-      "online"
+      paymentMethod === "online"
         ? "razorpay"
         : "cod",
 
     payment_method_title:
-      paymentMethod ===
-      "online"
+      paymentMethod === "online"
         ? "Razorpay"
         : "Cash on Delivery",
 
     set_paid:
-      paymentMethod ===
-      "online",
+      paymentMethod === "online",
 
     billing,
 
-    shipping:
-      shippingAddress,
+    shipping: shippingAddress,
 
-    line_items:
-      lineItems,
+    line_items: lineItems,
 
     shipping_lines: [
       {
-        method_title:
-          "Standard Shipping",
-
-        method_id:
-          "flat_rate",
-
-        total:
-          shipping.toFixed(2),
+        method_title: "Standard Shipping",
+        method_id: "flat_rate",
+        total: shipping.toFixed(2),
       },
     ],
 
-    tax_lines:
-      tax > 0
-        ? [
-            {
-              rate_code:
-                "app-tax",
+    // ========================================
+    // NO TAX LINES
+    // CLOUD FUNCTIONS IS SOURCE OF TRUTH
+    // ========================================
 
-              label:
-                "GST 18%",
+    tax_lines: [],
 
-              compound:
-                false,
-
-              tax_total:
-                tax.toFixed(
-                  2
-                ),
-
-              shipping_tax_total:
-                "0.00",
-            },
-          ]
-        : [],
-
-    fee_lines:
-      feeLines,
+    fee_lines: feeLines,
 
     meta_data: [
-      {
-        key:
-          "app_uid",
 
+      // ------------------------------------
+      // USER
+      // ------------------------------------
+
+      {
+        key: "app_uid",
         value: uid,
       },
 
-      {
-        key:
-          "wallet_used",
+      // ------------------------------------
+      // TAX BREAKDOWN
+      // ------------------------------------
 
-        value:
-          walletUsed,
+      ...Object.entries(gstBreakup).map(
+  ([rate, amount]) => ({
+    key: `gst_${rate}`,
+    value: Number(amount).toFixed(2),
+  })
+),
+
+...Object.entries(taxableBreakup).map(
+  ([rate, amount]) => ({
+    key: `taxable_${rate}`,
+    value: Number(amount).toFixed(2),
+  })
+),
+      {
+        key: "tax_total",
+        value: tax.toFixed(2),
+      },
+
+      // ------------------------------------
+      // DISCOUNTS
+      // ------------------------------------
+
+      {
+        key: "coupon_code",
+        value: couponCode || "",
       },
 
       {
-        key:
-          "cod_charge",
-
-        value:
-          codCharge,
+        key: "coupon_discount",
+        value: couponDiscount,
       },
 
       {
-        key:
-          "razorpay_order_id",
+        key: "wallet_used",
+        value: walletUsed,
+      },
 
-        value:
-          razorpayOrderId ||
-          "",
+      // ------------------------------------
+      // COD
+      // ------------------------------------
+
+      {
+        key: "cod_charge",
+        value: codCharge,
+      },
+
+      // ------------------------------------
+      // PAYMENT
+      // ------------------------------------
+
+      {
+        key: "razorpay_order_id",
+        value: razorpayOrderId || "",
       },
 
       {
-        key:
-          "razorpay_payment_id",
+        key: "razorpay_payment_id",
+        value: razorpayPaymentId || "",
+      },
 
-        value:
-          razorpayPaymentId ||
-          "",
+      // ------------------------------------
+      // APP TOTALS
+      // ------------------------------------
+
+      {
+        key: "app_subtotal",
+        value: subtotal.toFixed(2),
+      },
+
+      {
+        key: "app_shipping",
+        value: shipping.toFixed(2),
+      },
+
+      {
+        key: "app_final_payable",
+        value: finalPayable.toFixed(2),
       },
     ],
   };
 
-  const response: any =
-   await axios.post(
-  "https://store.gladskin.in/wp-json/wc/v3/orders",
-      body,
-      {
-        auth: {
-          username:"ck_1f90c93d45a4593f00f89ba5c942001e13898e09",
-          password:"cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392",
-        },
-      }
-    );
+  const response = await axios.post(
+    "https://store.gladskin.in/wp-json/wc/v3/orders",
+    body,
+    {
+      auth: {
+        username:"ck_1f90c93d45a4593f00f89ba5c942001e13898e09",
+        password:"cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392",
+      },
+    }
+  );
 
   return response.data;
 }

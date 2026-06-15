@@ -6,6 +6,7 @@ class SummaryRowWidget extends StatelessWidget {
   final String value;
   final bool isTotal;
   final bool isSubtotal; // 1. Added subtotal flag
+  
 
   const SummaryRowWidget({
     super.key,

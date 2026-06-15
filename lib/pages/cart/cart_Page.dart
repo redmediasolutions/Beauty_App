@@ -28,24 +28,24 @@ class _CartPageState extends State<CartPage> {
   final CartRepository _repository = CartRepository();
   final FirestoreService _firestoreService = FirestoreService();
   late Razorpay _razorpay;
+  
   bool _usePoints = false;
   bool _isProcessing = false;
   String _selectedPayment = "cod";
   Map<String, dynamic>? _selectedAddress;
   Map<String, dynamic> _rates = {};
   Map<String, double> _totals = {};
+  
   String? _razorpayOrderId;
   String? _razorpayKey;
+  
   List<CouponModel> coupons = [];
   CouponModel? selectedCoupon;
   bool isLoadingCoupons = true;
 
   double _couponDiscountAmount = 0;
-
   double _finalCheckoutTotal = 0;
-
   double _adjustedTaxAmount = 0;
-
   double _runningSubtotal = 0;
 
   @override
@@ -96,7 +96,6 @@ class _CartPageState extends State<CartPage> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 20),
-
                 _buildInputField(controller: nameController, hint: "Full Name"),
                 _buildInputField(
                   controller: phoneController,
@@ -255,7 +254,6 @@ class _CartPageState extends State<CartPage> {
 
               final docs = snapshot.data!.docs;
 
-             
               /// EMPTY ADDRESS
               if (docs.isEmpty) {
                 return Padding(
@@ -361,8 +359,7 @@ class _CartPageState extends State<CartPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       data['name'] ?? '',
@@ -410,10 +407,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _setupRazorpay() {
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (
-      PaymentSuccessResponse response,
-    ) async {
-      _hideProcessingSheet();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) async {
       if (mounted) {
         context.push('/processingpayment');
       }
@@ -424,13 +418,15 @@ class _CartPageState extends State<CartPage> {
       );
     });
 
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (
-      PaymentFailureResponse response,
-    ) {
-      _hideProcessingSheet();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Payment Failed")));
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
+      if (mounted && context.canPop()) {
+        context.pop();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Payment Failed"),
+        ),
+      );
     });
   }
 
@@ -505,11 +501,40 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<void> _startCheckout() async {
+    if (_isProcessing) return;
+    
     if (_selectedAddress == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Please select address")));
-
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  color: Color(0xFF6F0562),
+                ),
+                SizedBox(width: 8),
+                Text("Address Required"),
+              ],
+            ),
+            content: const Text(
+              "Please select a delivery address before placing your order.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
       return;
     }
 
@@ -518,12 +543,13 @@ class _CartPageState extends State<CartPage> {
         _isProcessing = true;
       });
 
-      _showProcessingSheet();
+      if (mounted) {
+        context.push('/processing-order');
+      }
 
       // =========================================
       // CALCULATE COUPON DISCOUNT SAFELY
       // =========================================
-
       double couponDiscountAmount = 0;
 
       if (selectedCoupon != null) {
@@ -537,17 +563,12 @@ class _CartPageState extends State<CartPage> {
 
         for (final doc in cartSnap.docs) {
           final data = doc.data();
-
-          subtotal +=
-              ((data['salePrice'] ?? 0).toDouble()) *
+          subtotal += ((data['salePrice'] ?? 0).toDouble()) *
               ((data['quantity'] ?? 1).toDouble());
         }
 
         couponDiscountAmount = subtotal * (selectedCoupon!.discount / 100);
-
-        // OPTIONAL:
         // ROUND TO 2 DECIMALS
-
         couponDiscountAmount = double.parse(
           couponDiscountAmount.toStringAsFixed(2),
         );
@@ -556,52 +577,43 @@ class _CartPageState extends State<CartPage> {
       // =========================================
       // CREATE ORDER
       // =========================================
-
       final result = await _repository.createSecureOrder(
         paymentMethod: _selectedPayment,
-
         useWallet: _usePoints,
-
         couponId: selectedCoupon?.id,
-
         couponCode: selectedCoupon?.code,
-
         couponDiscount: couponDiscountAmount,
       );
 
       final payable = (result['finalPayable'] ?? 0).toDouble();
-
       _razorpayOrderId = result['razorpayOrderId'];
-
       _razorpayKey = result['razorpayKey'];
 
       // =========================================
       // COD FLOW
       // =========================================
-
       if (_selectedPayment == "cod" || payable <= 0) {
-        _hideProcessingSheet();
-
         await _finalizeOrder(null, null, null);
-
         return;
       }
 
       // =========================================
       // ONLINE PAYMENT FLOW
       // =========================================
-
-      _hideProcessingSheet();
-
+      if (mounted && context.canPop()) {
+        context.pop();
+      }
+      
       _openRazorpay(payable);
+      
     } catch (e) {
-      _hideProcessingSheet();
-
+      if (mounted && context.canPop()) {
+        context.pop();
+      }
       debugPrint('Checkout error: $e');
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Checkout failed")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Checkout failed")),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -648,72 +660,24 @@ class _CartPageState extends State<CartPage> {
       };
 
       final result = await _repository.finalizeOrder(
-  razorpayOrderId: orderId,
-  razorpayPaymentId: paymentId,
-  razorpaySignature: signature,
-
-  useWallet: _usePoints,
-
-  billing: billing,
-  shipping: billing,
-
-  couponId:
-      selectedCoupon?.id,
-
-  couponCode:
-      selectedCoupon?.code,
-
-  couponDiscount:
-      _couponDiscountAmount,
-);
+        razorpayOrderId: orderId,
+        razorpayPaymentId: paymentId,
+        razorpaySignature: signature,
+        useWallet: _usePoints,
+        billing: billing,
+        shipping: billing,
+        couponId: selectedCoupon?.id,
+        couponCode: selectedCoupon?.code,
+        couponDiscount: _couponDiscountAmount,
+      );
 
       final wooOrderId = result['orderId'].toString();
+      
       if (!mounted) return;
-
       context.go('/ordersuccess', extra: wooOrderId);
     } catch (e) {
       if (!mounted) return;
       context.go('/orderfailed', extra: "Failed to place order");
-    }
-  }
-
-  void _showProcessingSheet() {
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      builder: (context) {
-        return SizedBox(
-          height: 300,
-          width: double.infinity,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              CircularProgressIndicator(color: Color(0xFF6F0562)),
-              SizedBox(height: 20),
-              Text(
-                "Processing your order...",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: 6),
-              Text(
-                "Please wait, do not go back",
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _hideProcessingSheet() {
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
     }
   }
 
@@ -745,322 +709,222 @@ class _CartPageState extends State<CartPage> {
 
             final docs = snapshot.data!.docs;
 
-             double totalSavings = 0;
+            // ========================================
+            // DEBUG CART DATA
+            // ========================================
+            debugPrint("========== CART ITEMS ==========");
+            for (final doc in docs) {
+              final data = doc.data() as Map<String, dynamic>;
+              debugPrint("""
+                Product: ${data['name']}
+                ProductId: ${data['productId']}
+                Qty: ${data['quantity']}
+                MRP: ${data['mrp']}
+                SalePrice: ${data['salePrice']}
+                TaxClass: ${data['taxClass']}
+                TaxRate: ${data['taxRate']}
+              """);
+            }
+            debugPrint("================================");
 
-for (final doc in docs) {
-  final data = doc.data() as Map<String, dynamic>;
+            double totalSavings = 0;
+            for (final doc in docs) {
+              final data = doc.data() as Map<String, dynamic>;
 
-  final mrp = (data['mrp'] as num?)?.toDouble() ?? 0;
-  final salePrice =
-      (data['salePrice'] as num?)?.toDouble() ?? mrp;
-  final qty = (data['quantity'] as num?)?.toInt() ?? 1;
+              final mrp = (data['mrp'] as num?)?.toDouble() ?? 0;
+              final salePrice = (data['salePrice'] as num?)?.toDouble() ?? mrp;
+              final qty = (data['quantity'] as num?)?.toInt() ?? 1;
 
-  if (mrp > salePrice) {
-    totalSavings += (mrp - salePrice) * qty;
-  }
-}
+              if (mrp > salePrice) {
+                totalSavings += (mrp - salePrice) * qty;
+              }
+            }
 
-double totalMrp = docs.fold(0.0, (
-
-  sum,
-
-  doc,
-
-) {
-
-  final data =
-
-      doc.data() as Map<String, dynamic>;
-
-  final mrp =
-
-      (data['mrp'] as num?)
-
-          ?.toDouble() ??
-
-      0;
-
-  final qty =
-
-      (data['quantity'] as num?)
-
-          ?.toInt() ??
-
-      1;
-
-  return sum + (mrp * qty);
-
-});
-
+            double totalMrp = docs.fold(0.0, (sum, doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final mrp = (data['mrp'] as num?)?.toDouble() ?? 0;
+              final qty = (data['quantity'] as num?)?.toInt() ?? 1;
+              return sum + (mrp * qty);
+            });
 
             if (docs.isEmpty) {
-  return Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 32,
-      ),
-      child: Column(
-        mainAxisAlignment:
-            MainAxisAlignment.center,
-        children: [
-          Container(
-            height: 120,
-            width: 120,
-            decoration: BoxDecoration(
-              color: const Color(
-                0xFF6F0562,
-              ).withOpacity(0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.shopping_bag_outlined,
-              size: 60,
-              color: Color(0xFF6F0562),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          const Text(
-            "Your cart is empty",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF2D2424),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            "Looks like you haven't added any products yet.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
-          ),
-
-          const SizedBox(height: 30),
-
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton(
-              onPressed: () {
-                context.go('/AllProducts');
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF6F0562),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(30),
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        height: 120,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6F0562).withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 60,
+                          color: Color(0xFF6F0562),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        "Your cart is empty",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2D2424),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "Looks like you haven't added any products yet.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            context.go('/AllProducts');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6F0562),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                          ),
+                          child: const Text(
+                            "Browse Products",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: const Text(
-                "Browse Products",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+              );
+            }
 
             // ========================================
-// CART TOTALS
-// ========================================
+            // CART TOTALS
+            // ========================================
+            _totals = _repository.calculateTotals(
+              docs: docs,
+              rates: _rates,
+            );
 
-_totals = _repository.calculateTotals(
-  docs: docs,
-  rates: _rates,
-);
+            final double subtotal = _totals['subtotal'] ?? 0;
+            final double shipping = _totals['shipping'] ?? 0;
 
-final double subtotal =
-    _totals['subtotal'] ?? 0;
+            // ========================================
+            // COUPON DISCOUNT
+            // ========================================
+            _couponDiscountAmount = 0;
+            if (selectedCoupon != null) {
+              _couponDiscountAmount = subtotal * (selectedCoupon!.discount / 100);
+              _couponDiscountAmount = double.parse(
+                _couponDiscountAmount.toStringAsFixed(2),
+              );
+            }
 
-final double shipping =
-    _totals['shipping'] ?? 0;
+            // ========================================
+            // POINTS DISCOUNT
+            // ========================================
+            final double pointsDiscountAmount = _usePoints ? 50 : 0;
 
-// ========================================
-// GST BUCKETS
-// ========================================
+            // ========================================
+            // TOTAL DISCOUNT
+            // ========================================
+            final double aggregateTotalDiscount = _couponDiscountAmount + pointsDiscountAmount;
 
-double gst18Subtotal = 0;
-double gst5Subtotal = 0;
+            // ========================================
+            // GST CALCULATION
+            // SUPPORTS ANY GST RATE
+            // ========================================
+            final Map<int, double> gstBreakup = {};
+double totalTax = 0;
 
 for (final doc in docs) {
   final data =
       doc.data() as Map<String, dynamic>;
 
-  final double salePrice =
-      (data['salePrice'] as num?)
-              ?.toDouble() ??
-          0;
+  final salePrice =
+      (data['salePrice'] as num?)?.toDouble() ?? 0;
 
-  final int qty =
-      (data['quantity'] as num?)
-              ?.toInt() ??
-          1;
+  final qty =
+      (data['quantity'] as num?)?.toInt() ?? 1;
 
-  final double lineTotal =
-      salePrice * qty;
+  final gstRate =
+      (data['TaxRate'] as num?)?.toDouble() ??
+      (data['taxRate'] as num?)?.toDouble() ??
+      0;
 
-  final String taxClass =
-      data['taxClass']
-              ?.toString() ??
-          '';
+  final lineTax =
+      (salePrice * qty) *
+      (gstRate / 100);
 
-  if (taxClass == 'reduced-rate') {
-    gst5Subtotal += lineTotal;
-  } else {
-    gst18Subtotal += lineTotal;
-  }
-}
+  totalTax += lineTax;
 
-// ========================================
-// COUPON DISCOUNT
-// ========================================
+  gstBreakup.update(
+    gstRate.toInt(),
+    (value) => value + lineTax,
+    ifAbsent: () => lineTax,
+  );
 
-_couponDiscountAmount = 0;
-
-if (selectedCoupon != null) {
-  _couponDiscountAmount =
-      subtotal *
-      (selectedCoupon!.discount / 100);
-
-  _couponDiscountAmount =
-      double.parse(
-    _couponDiscountAmount
-        .toStringAsFixed(2),
+  debugPrint(
+    "${data['name']} => GST $gstRate% => Tax ₹$lineTax",
   );
 }
 
-// ========================================
-// POINTS DISCOUNT
-// ========================================
-
-final double pointsDiscountAmount =
-    _usePoints ? 50 : 0;
-
-// ========================================
-// TOTAL DISCOUNT
-// ========================================
-
-final double aggregateTotalDiscount =
-    _couponDiscountAmount +
-    pointsDiscountAmount;
-
-// ========================================
-// DISCOUNTED SUBTOTAL
-// ========================================
-
-_runningSubtotal =
-    subtotal -
-    aggregateTotalDiscount;
-
-if (_runningSubtotal < 0) {
-  _runningSubtotal = 0;
-}
-
-// ========================================
-// ALLOCATE DISCOUNT
-// ACROSS TAX BUCKETS
-// ========================================
-
-final double taxableTotal =
-    gst18Subtotal +
-    gst5Subtotal;
-
-double gst18DiscountShare = 0;
-double gst5DiscountShare = 0;
-
-if (taxableTotal > 0) {
-  gst18DiscountShare =
-      aggregateTotalDiscount *
-      (gst18Subtotal /
-          taxableTotal);
-
-  gst5DiscountShare =
-      aggregateTotalDiscount *
-      (gst5Subtotal /
-          taxableTotal);
-}
-
-// ========================================
-// TAXABLE VALUES
-// ========================================
-
-final double taxable18 =
-    (gst18Subtotal -
-            gst18DiscountShare)
-        .clamp(
-          0.0,
-          double.infinity,
-        );
-
-final double taxable5 =
-    (gst5Subtotal -
-            gst5DiscountShare)
-        .clamp(
-          0.0,
-          double.infinity,
-        );
-
-// ========================================
-// GST CALCULATION
-// (GST EXCLUSIVE PRICING)
-// ========================================
-
-final double gst18Amount =
-    taxable18 * 0.18;
-
-final double gst5Amount =
-    taxable5 * 0.05;
-
-_adjustedTaxAmount =
-    gst18Amount +
-    gst5Amount;
-
 _adjustedTaxAmount =
     double.parse(
-  _adjustedTaxAmount
-      .toStringAsFixed(2),
+      totalTax.toStringAsFixed(2),
+    );
+            
+            // ========================================
+            // DISCOUNTED SUBTOTAL
+            // ========================================
+            _runningSubtotal = subtotal - aggregateTotalDiscount;
+            if (_runningSubtotal < 0) {
+              _runningSubtotal = 0;
+            }
+
+            debugPrint(
+
+  "Payment=$_selectedPayment "
+
+  "Rates=$_rates "
+
+  "COD=${_rates['cod_charges']}",
+
 );
 
-// ========================================
-// COD CHARGES
-// ========================================
-
-final double codChargesAmount =
+            // ========================================
+            // COD CHARGES
+            // ========================================
+            final double codChargesAmount =
     _selectedPayment == "cod"
-        ? (_rates['cod_charges'] ?? 0)
-            .toDouble()
-        : 0;
+        ? (_runningSubtotal >= 500
+            ? 29.0
+            : 49.0)
+        : 0.0;
 
-// ========================================
-// FINAL TOTAL
-// ========================================
-
-_finalCheckoutTotal =
-    _runningSubtotal +
-    _adjustedTaxAmount +
-    shipping +
-    codChargesAmount;
-
-_finalCheckoutTotal =
-    double.parse(
-  _finalCheckoutTotal
-      .toStringAsFixed(2),
-);
+            // ========================================
+            // FINAL TOTAL
+            // ========================================
+            _finalCheckoutTotal = _runningSubtotal + _adjustedTaxAmount + shipping + codChargesAmount;
+            _finalCheckoutTotal = double.parse(_finalCheckoutTotal.toStringAsFixed(2));
 
             return SingleChildScrollView(
               controller: _scrollController,
@@ -1112,37 +976,28 @@ _finalCheckoutTotal =
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 15),
-child: CartItemWidget(
-  name: data['name'] ?? '',
-
-  mrp: (data['mrp'] ?? 0).toDouble(),
-
-  salePrice:
-      (data['salePrice'] ?? data['mrp'] ?? 0)
-          .toDouble(),
-
-  imageUrl: data['image'] ?? '',
-
-  quantity: data['quantity'] ?? 1,
-
-  onIncrement: () async {
-    await _repository.updateQty(
-      docId: docId,
-      delta: 1,
-    );
-  },
-
-  onDecrement: () async {
-    await _repository.updateQty(
-      docId: docId,
-      delta: -1,
-    );
-  },
-
-  onRemove: () async {
-    await _repository.removeItem(docId);
-  },
-),
+                        child: CartItemWidget(
+                          name: data['name'] ?? '',
+                          mrp: (data['mrp'] ?? 0).toDouble(),
+                          salePrice: (data['salePrice'] ?? data['mrp'] ?? 0).toDouble(),
+                          imageUrl: data['image'] ?? '',
+                          quantity: data['quantity'] ?? 1,
+                          onIncrement: () async {
+                            await _repository.updateQty(
+                              docId: docId,
+                              delta: 1,
+                            );
+                          },
+                          onDecrement: () async {
+                            await _repository.updateQty(
+                              docId: docId,
+                              delta: -1,
+                            );
+                          },
+                          onRemove: () async {
+                            await _repository.removeItem(docId);
+                          },
+                        ),
                       );
                     },
                   ),
@@ -1252,40 +1107,25 @@ child: CartItemWidget(
                   const SizedBox(height: 30),
 
                   if (totalSavings > 0) ...[
-
-  SavingsCardWidget(
-
-  productSavings: totalSavings,
-
-  couponSavings: _couponDiscountAmount,
-
-),
-  const SizedBox(height: 24),
-
-],
+                    SavingsCardWidget(
+                      productSavings: totalSavings,
+                      couponSavings: _couponDiscountAmount,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
 
                   /// BILL SUMMARY
-                 BillSummaryWidget(
-  totalMrp: totalMrp,
-
-  subtotal: subtotal,
-
-  tax: _adjustedTaxAmount,
-
-  gst18: gst18Amount,
-
-  gst5: gst5Amount,
-
-  shipping: shipping,
-
-  total: _finalCheckoutTotal,
-
-  usePoints: _usePoints,
-
-  couponDiscount: _couponDiscountAmount,
-
-  codCharges: codChargesAmount,
-),
+                  BillSummaryWidget(
+                    totalMrp: totalMrp,
+                    subtotal: subtotal,
+                    tax: _adjustedTaxAmount,
+                    gstBreakup: gstBreakup,
+                    shipping: shipping,
+                    total: _finalCheckoutTotal,
+                    usePoints: _usePoints,
+                    couponDiscount: _couponDiscountAmount,
+                    codCharges: codChargesAmount,
+                  ),
                   const SizedBox(height: 30),
 
                   /// CHECKOUT BUTTON

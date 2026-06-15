@@ -6,6 +6,7 @@
   import 'package:firebase_auth/firebase_auth.dart';
   import 'package:http/http.dart' as http;
   import 'package:pinput/pinput.dart';
+  import 'package:firebase_messaging/firebase_messaging.dart';
 
   class MobileLogin extends StatefulWidget {
     const MobileLogin({super.key});
@@ -54,6 +55,49 @@ void initState() {
       super.dispose();
     }
 
+    Future<void> _saveFcmToken(User user) async {
+  try {
+
+    final token =
+        await FirebaseMessaging.instance.getToken();
+
+    debugPrint(
+      '📲 Current FCM Token: $token',
+    );
+
+    if (token == null) {
+      debugPrint(
+        '❌ FCM token is null',
+      );
+      return;
+    }
+
+    await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .set(
+      {
+        'fcmToken': token,
+        'lastTokenUpdate':
+            FieldValue.serverTimestamp(),
+      },
+      SetOptions(
+        merge: true,
+      ),
+    );
+
+    debugPrint(
+      '✅ FCM token saved for ${user.uid}',
+    );
+
+  } catch (e) {
+
+    debugPrint(
+      '❌ FCM save error: $e',
+    );
+  }
+}
+
     Future<void> _handleButtonPress() async {
     if (_isLoading || _isButtonLocked) return;
 
@@ -79,7 +123,7 @@ void initState() {
     Future<void> _saveUserToFirestore(User user) async {
       try {
         final userDoc = FirebaseFirestore.instance
-            .collection('users')
+            .collection('Users')
             .doc(user.uid);
 
         await userDoc
@@ -246,6 +290,7 @@ void initState() {
 
       if (user != null) {
         await _saveUserToFirestore(user);
+          await _saveFcmToken(user);
       }
 
       debugPrint("✅ Login successful: ${user?.uid}");
@@ -305,6 +350,9 @@ void initState() {
 
         // Save user (non-blocking safe)
         await _saveUserToFirestore(user);
+
+
+        await _saveFcmToken(user);
 
         if (!mounted) return;
 

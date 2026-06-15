@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glowfit/pages/cart/processingcartpage.dart';
 import 'package:glowfit/pages/orderspage/orderdetails.dart';
 import 'package:glowfit/pages/orderspage/orderfailed.dart';
 import 'package:glowfit/pages/orderspage/processingpage.dart';
@@ -28,6 +29,7 @@ class AppRouter {
       GlobalKey<NavigatorState>();
 
   static final GoRouter router = GoRouter(
+    
     navigatorKey: rootNavigatorKey,
     initialLocation: '/splash',
 
@@ -134,6 +136,11 @@ GoRoute(
   builder: (context, state) => const OrdersPage(),
 ),
 
+GoRoute(
+  path: '/processing-order',
+  builder: (context, state) =>
+      const ProcessingOrderScreen(),
+),
       /// 🛒 CART
       GoRoute(
         path: '/cart',

@@ -56,9 +56,7 @@ class ProductDetail {
   final List<ProductImage>
       addimages;
 
-  // TAX
-  final String taxClass;
-  final double taxRate;
+  final int gstRate;
 
   ProductDetail({
     required this.id,
@@ -75,8 +73,7 @@ class ProductDetail {
     this.relatedProducts = const [],
 
     // TAX
-    required this.taxClass,
-    required this.taxRate,
+    required this.gstRate,
 
     required this.manageStock,
     required this.stockStatus,
@@ -451,27 +448,35 @@ class ProductDetail {
       json['meta_data'],
     );
 
-    // =====================================
-// TAX CLASS
+// =====================================
+// GST RATE
 // =====================================
 
-final String taxClass =
-    json['tax_class']?.toString() ?? '';
+int gstRate = 18;
 
-double taxRate = 18.0;
+final metaData =
+    json['meta_data'] as List?;
 
-switch (taxClass) {
-  case 'reduced-rate':
-    taxRate = 5.0;
-    break;
+if (metaData != null) {
 
-  case '':
-  case 'standard':
-    taxRate = 18.0;
-    break;
+  for (final item in metaData) {
 
-  default:
-    taxRate = 18.0;
+    if (item is Map<String, dynamic>) {
+
+      if (item['key'] == 'gst_rate') {
+
+        gstRate =
+            int.tryParse(
+              item['value']
+                      ?.toString() ??
+                  '',
+            ) ??
+            18;
+
+        break;
+      }
+    }
+  }
 }
 
     // =====================================
@@ -533,8 +538,8 @@ switch (taxClass) {
       addimages:
           addimages,
 
-      taxClass: taxClass,
-      taxRate: taxRate,
+      gstRate: gstRate,
+
 
       price:
           price,
