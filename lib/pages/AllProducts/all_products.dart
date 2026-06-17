@@ -8,6 +8,7 @@ import 'package:glowfit/services/api.dart';
 import 'package:glowfit/services/remoteconfig.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class AllProducts extends StatefulWidget {
   const AllProducts({super.key});
@@ -64,14 +65,27 @@ class _AllProductsState extends State<AllProducts> {
 
       setState(() {
         categories = [
-          CategoryModel(id: 49, name: "All", image: "", parent: 0),
+          CategoryModel(
+            id: 49,
+            name: "All",
+            image: "assets/images/gladskin-all.webp",
+            parent: 0,
+          ),
           ...result,
         ];
       });
 
       // Load subcategories for first category
       if (categories.isNotEmpty) {
-        await loadSubCategories(categories.first.id);
+        setState(() {
+          _selectedCategoryIndex = 0;
+
+          _selectedCategoryId = 49;
+
+          _selectedSubCategoryId = 49;
+
+          subCategories = []; // hide sidebar
+        });
       }
     } catch (e) {
       debugPrint("❌ Remote category error: $e");
@@ -218,12 +232,36 @@ class _AllProductsState extends State<AllProducts> {
                                     child: CircleAvatar(
                                       radius: 30,
                                       backgroundColor: Colors.grey.shade100,
-                                      backgroundImage: (cat.image.isNotEmpty)
-                                          ? NetworkImage(cat.image)
-                                          : null,
-                                      child: (cat.image.isEmpty)
-                                          ? const Icon(Icons.category, size: 20)
-                                          : null,
+                                      child: ClipOval(
+                                        child: cat.image.startsWith('assets/')
+                                            ? Image.asset(
+                                                cat.image,
+                                                width: 60,
+                                                height: 60,
+                                                fit: BoxFit.cover,
+                                              )
+                                            : cat.image.isNotEmpty
+                                            ? CachedNetworkImage(
+                                                imageUrl: cat.image,
+                                                width: 60,
+                                                height: 60,
+                                                fit: BoxFit.cover,
+                                                placeholder: (_, __) =>
+                                                    const Center(
+                                                      child: SizedBox(
+                                                        width: 18,
+                                                        height: 18,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              strokeWidth: 2,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                errorWidget: (_, __, ___) =>
+                                                    const Icon(Icons.category),
+                                              )
+                                            : const Icon(Icons.category),
+                                      ),
                                     ),
                                   ),
 
@@ -330,9 +368,26 @@ class _AllProductsState extends State<AllProducts> {
                                               borderRadius:
                                                   BorderRadius.circular(10),
                                               child: sub.image.isNotEmpty
-                                                  ? Image.network(
-                                                      sub.image,
+                                                  ? CachedNetworkImage(
+                                                      imageUrl: sub.image,
                                                       fit: BoxFit.cover,
+                                                      placeholder: (_, __) =>
+                                                          const Center(
+                                                            child: SizedBox(
+                                                              width: 16,
+                                                              height: 16,
+                                                              child:
+                                                                  CircularProgressIndicator(
+                                                                    strokeWidth:
+                                                                        2,
+                                                                  ),
+                                                            ),
+                                                          ),
+                                                      errorWidget:
+                                                          (_, __, ___) =>
+                                                              const Icon(
+                                                                Icons.category,
+                                                              ),
                                                     )
                                                   : const Icon(
                                                       Icons.category,
@@ -351,11 +406,12 @@ class _AllProductsState extends State<AllProducts> {
                                                   ),
                                               child: Text(
                                                 sub.name,
-                                                maxLines: 1, // 🔥 IMPORTANT
-                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 2,
                                                 textAlign: TextAlign.center,
+                                                overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                  fontSize: 11,
+                                                  fontSize: 10,
+                                                  height: 1.15,
                                                   fontWeight: isSelected
                                                       ? FontWeight.w600
                                                       : FontWeight.w400,

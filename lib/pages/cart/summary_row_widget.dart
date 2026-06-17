@@ -19,7 +19,7 @@ class SummaryRowWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Determine font size: 20 for absolute total, 15 for standard/subtotal items
-    final double computedFontSize = isTotal ? 20 : 15;
+    final double computedFontSize = isTotal ? 15 : 15;
 
     // Determine font weight for the label string
     final FontWeight labelWeight = (isTotal || isSubtotal) 

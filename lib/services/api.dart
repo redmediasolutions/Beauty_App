@@ -186,17 +186,50 @@ static Future<SingleOrder?> fetchSingleOrder(
       headers: getHeaders(),
     );
 
+    debugPrint(
+      '📦 Order API Response (${response.statusCode})'
+    );
+
+    debugPrint(response.body);
+
     if (response.statusCode == 200) {
       final Map<String, dynamic> json =
           jsonDecode(response.body) as Map<String, dynamic>;
 
+      debugPrint(
+        '🧾 Fee Lines: ${json["fee_lines"]}'
+      );
+
+      debugPrint(
+        '🧾 Tax Lines: ${json["tax_lines"]}'
+      );
+
+      debugPrint(
+        '🧾 Total Tax: ${json["total_tax"]}'
+      );
+
+      debugPrint(
+
+  "📦 Line Items: ${json['line_items']}"
+
+);
+
+debugPrint(
+
+  "📦 Tax Lines: ${json['tax_lines']}"
+
+);
+
       return SingleOrder.fromJson(json);
     } else {
       debugPrint(
-          '❌ [API] Failed to fetch order $orderId → ${response.statusCode}');
+        '❌ [API] Failed to fetch order $orderId → ${response.statusCode}',
+      );
     }
   } catch (e) {
-    debugPrint('🚨 [API] fetchSingleOrder error: $e');
+    debugPrint(
+      '🚨 [API] fetchSingleOrder error: $e',
+    );
   }
 
   return null;

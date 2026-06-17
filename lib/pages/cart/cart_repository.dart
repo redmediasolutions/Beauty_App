@@ -177,53 +177,38 @@ Future<Map<String, dynamic>> finalizeOrder({
   /// ======================================================
 
   Map<String, double> calculateTotals({
-    required List docs,
-    required Map<String, dynamic> rates,
-  }) {
-    double subtotal = 0;
+  required List docs,
+  required Map<String, dynamic> rates,
+}) {
+  double subtotal = 0;
 
-    for (var doc in docs) {
-      final data =
-          doc.data() as Map<String, dynamic>;
+  for (final doc in docs) {
+    final data = doc.data() as Map<String, dynamic>;
 
-      double price = double.tryParse(
-            data['salePrice']
-                    ?.toString() ??
-                '0',
-          ) ??
-          0;
+    final double salePrice =
+        (data['salePrice'] as num?)?.toDouble() ?? 0;
 
-      int qty =
-          (data['quantity'] ?? 1).toInt();
+    final int qty =
+        (data['quantity'] as num?)?.toInt() ?? 1;
 
-      subtotal += price * qty;
-    }
-
-    final shipping =
-        subtotal <=
-                (rates[
-                        'freeShippingThreshold'] ??
-                    500)
-            ? (rates[
-                        'shippingBelowThreshold'] ??
-                    49)
-                .toDouble()
-            : (rates[
-                        'shippingAboveThreshold'] ??
-                    0)
-                .toDouble();
-
-    final tax = subtotal *
-        (rates['taxPercentage'] ?? 0.05);
-
-    final total =
-        subtotal + shipping + tax;
-
-    return {
-      "subtotal": subtotal,
-      "shipping": shipping,
-      "tax": tax,
-      "total": total,
-    };
+    subtotal += salePrice * qty;
   }
+
+  final double shipping =
+      subtotal <=
+              ((rates['freeShippingThreshold'] ?? 500) as num)
+          ? ((rates['shippingBelowThreshold'] ?? 49) as num)
+              .toDouble()
+          : ((rates['shippingAboveThreshold'] ?? 0) as num)
+              .toDouble();
+
+  return {
+    "subtotal": double.parse(
+      subtotal.toStringAsFixed(2),
+    ),
+    "shipping": double.parse(
+      shipping.toStringAsFixed(2),
+    ),
+  };
+}
 }

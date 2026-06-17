@@ -25,162 +25,372 @@ class OrderCard extends StatelessWidget {
     required this.amount,
     required this.delivery,
     this.showTrack = false,
-    this.showReorder = false, 
+    this.showReorder = false,
     required this.odericon,
   });
 
+  static const Color primaryColor =
+      Color(0xFF6F0562);
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: iconBg,
-                    shape: BoxShape.circle,
+    return Container(
+      margin:
+          const EdgeInsets.only(bottom: 14),
+
+      padding: const EdgeInsets.all(18),
+
+      decoration: BoxDecoration(
+        color: Colors.white,
+
+        borderRadius:
+            BorderRadius.circular(20),
+
+        border: Border.all(
+          color: Colors.grey.shade200,
+        ),
+
+        boxShadow: [
+          BoxShadow(
+            color:
+                Colors.black.withOpacity(
+              0.03,
+            ),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
+        children: [
+          /// HEADER
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+
+                decoration: BoxDecoration(
+                  color:
+                      primaryColor.withOpacity(
+                    0.08,
                   ),
-                  child: odericon,
+
+                  borderRadius:
+                      BorderRadius.circular(
+                    14,
+                  ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Order $orderId",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        date,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+
+                child: Center(
+                  child: Icon(
+                    odericon.icon,
+                    color: primaryColor,
+                    size: 22,
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: statusColor,
-                      fontWeight: FontWeight.w600,
+              ),
+
+              const SizedBox(width: 14),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+
+                  children: [
+                    Text(
+                      "Order #$orderId",
+
+                      style:
+                          const TextStyle(
+                        fontSize: 15,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.black87,
+                      ),
                     ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      date,
+
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors
+                            .grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+
+                decoration: BoxDecoration(
+                  color: statusColor
+                      .withOpacity(0.10),
+
+                  borderRadius:
+                      BorderRadius.circular(
+                    30,
                   ),
                 ),
-              ],
-            ),
 
-            const SizedBox(height: 16),
+                child: Text(
+                  status.toUpperCase(),
 
-            /// Info Row
-            Row(
-              children: [
-                _info("Total Items", items),
-                _info("Total Amount", amount),
-              ],
-            ),
-
-            if (delivery.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                "Estimated Delivery\n$delivery",
-                style: const TextStyle(fontSize: 12),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 10,
+                    fontWeight:
+                        FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
               ),
             ],
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
-            /// Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A5F),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {
-                      context.pushNamed(
-  'orderDetail',
-  pathParameters: {
-    'id': orderId.toString(), // ✅ FIXED
-  },
-);
-                    },
-                    child: const Text("View Details", style: TextStyle(color: Colors.white),),
-                  ),
+          /// INFO SECTION
+          Row(
+            children: [
+              _info(
+                "Total Items",
+                items,
+              ),
+
+              _info(
+                "Amount",
+                "₹$amount",
+              ),
+            ],
+          ),
+
+          if (delivery.isNotEmpty) ...[
+            const SizedBox(height: 14),
+
+            Container(
+              padding:
+                  const EdgeInsets.all(12),
+
+              decoration: BoxDecoration(
+                color:
+                    const Color(0xFFF8EEF7),
+
+                borderRadius:
+                    BorderRadius.circular(
+                  12,
                 ),
-                if (showTrack) ...[
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              ),
+
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.local_shipping_outlined,
+                    size: 18,
+                    color: primaryColor,
+                  ),
+
+                  const SizedBox(width: 8),
+
+                  Expanded(
+                    child: Text(
+                      delivery,
+
+                      style:
+                          const TextStyle(
+                        fontSize: 13,
+                        color:
+                            Colors.black87,
+                        fontWeight:
+                            FontWeight.w500,
                       ),
                     ),
-                    onPressed: () {},
-                    child: const Text("Track", style: TextStyle(color: Color.fromARGB(255, 6, 39, 66)),),
                   ),
                 ],
-                if (showReorder) ...[
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {},
-                    child: const Text("Reorder",style: TextStyle(color: Color.fromARGB(255, 6, 39, 66))),
-                  ),
-                ],
-              ],
+              ),
             ),
           ],
-        ),
+
+          const SizedBox(height: 18),
+
+          Divider(
+            color: Colors.grey.shade200,
+            height: 1,
+          ),
+
+          const SizedBox(height: 18),
+
+          /// BUTTONS
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+
+                  child: ElevatedButton(
+                    style:
+                        ElevatedButton.styleFrom(
+                      elevation: 0,
+
+                      backgroundColor:
+                          primaryColor,
+
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(
+                          30,
+                        ),
+                      ),
+                    ),
+
+                    onPressed: () {
+                      context.pushNamed(
+                        'orderDetail',
+                        pathParameters: {
+                          'id':
+                              orderId.toString(),
+                        },
+                      );
+                    },
+
+                    child: const Text(
+                      "VIEW DETAILS",
+
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight:
+                            FontWeight.w600,
+                        letterSpacing:
+                            0.8,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              if (showTrack) ...[
+                const SizedBox(width: 10),
+
+                SizedBox(
+                  height: 50,
+
+                  child: OutlinedButton(
+                    style:
+                        OutlinedButton.styleFrom(
+                      foregroundColor:
+                          primaryColor,
+
+                      side: const BorderSide(
+                        color: primaryColor,
+                      ),
+
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(
+                          30,
+                        ),
+                      ),
+                    ),
+
+                    onPressed: () {},
+
+                    child: const Text(
+                      "TRACK",
+                    ),
+                  ),
+                ),
+              ],
+
+              if (showReorder) ...[
+                const SizedBox(width: 10),
+
+                SizedBox(
+                  height: 50,
+
+                  child: OutlinedButton(
+                    style:
+                        OutlinedButton.styleFrom(
+                      foregroundColor:
+                          primaryColor,
+
+                      side: const BorderSide(
+                        color: primaryColor,
+                      ),
+
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(
+                          30,
+                        ),
+                      ),
+                    ),
+
+                    onPressed: () {},
+
+                    child: const Text(
+                      "REORDER",
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _info(String title, String value) {
+  Widget _info(
+    String title,
+    String value,
+  ) {
     return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+
         children: [
           Text(
-            title,
+            title.toUpperCase(),
+
             style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
+              fontSize: 10,
+              color: Colors.grey.shade500,
+              letterSpacing: 1,
+              fontWeight:
+                  FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+
+          const SizedBox(height: 6),
+
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight:
+                  FontWeight.w700,
+              color: Colors.black87,
+            ),
           ),
         ],
       ),

@@ -1,7 +1,7 @@
 name: glowfit
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.3+14
+version: 0.1.2+1
 
 environment:
   sdk: ^3.11.0
@@ -31,6 +31,7 @@ dependencies:
   algoliasearch: ^1.49.1
   firebase_messaging: ^16.3.0
   flutter_local_notifications: ^22.0.0
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:
@@ -47,6 +48,7 @@ flutter:
     - assets/images/gladskin.png
     - assets/images/splashscreen/onlylogo.svg
     - assets/images/splashscreen/onlytext.svg
+    - assets/images/gladskin-all.webp
   fonts:
     - family: Manrope
       fonts:

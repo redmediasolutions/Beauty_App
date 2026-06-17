@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:glowfit/models/product_model.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ProductsList extends StatefulWidget {
   final String? id;
@@ -111,96 +112,48 @@ class _ProductsListState
                       15,
                     ),
 
-                    child: Image.network(
-                      imageUrl,
+child: CachedNetworkImage(
+  imageUrl: imageUrl,
 
-                      fit: BoxFit.cover,
+  fit: BoxFit.cover,
 
-                      width:
-                          double.infinity,
+  width: double.infinity,
+  height: double.infinity,
 
-                      height:
-                          double.infinity,
+  memCacheWidth: 600,
+  maxWidthDiskCache: 1200,
 
-                      // =========================
-                      // LOADING
-                      // =========================
+  placeholder: (context, url) {
+    return Container(
+      color: Colors.grey[100],
+      child: const Center(
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+        ),
+      ),
+    );
+  },
 
-                      loadingBuilder: (
-                        context,
-                        child,
-                        loadingProgress,
-                      ) {
+  errorWidget: (context, url, error) {
+    return CachedNetworkImage(
+      imageUrl: fallbackImage,
+      fit: BoxFit.cover,
 
-                        if (loadingProgress ==
-                            null) {
-
-                          return child;
-                        }
-
-                        return Container(
-                          color:
-                              Colors.grey[
-                                  100],
-
-                          child:
-                              const Center(
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth:
-                                  2,
-                            ),
-                          ),
-                        );
-                      },
-
-                      // =========================
-                      // ERROR FALLBACK
-                      // =========================
-
-                      errorBuilder: (
-                        context,
-                        error,
-                        stackTrace,
-                      ) {
-
-                        return Image.network(
-                          fallbackImage,
-
-                          fit:
-                              BoxFit.cover,
-
-                          errorBuilder: (
-                            context,
-                            error,
-                            stackTrace,
-                          ) {
-
-                            return Container(
-                              color:
-                                  Colors
-                                          .grey[
-                                      100],
-
-                              child:
-                                  const Center(
-                                child:
-                                    Icon(
-                                  Icons
-                                      .image_not_supported,
-
-                                  color:
-                                      Colors.grey,
-
-                                  size:
-                                      32,
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
+      errorWidget: (_, __, ___) {
+        return Container(
+          color: Colors.grey[100],
+          child: const Center(
+            child: Icon(
+              Icons.image_not_supported,
+              color: Colors.grey,
+              size: 32,
+            ),
+          ),
+        );
+      },
+    );
+  },
+),
                   ),
                 ),
 

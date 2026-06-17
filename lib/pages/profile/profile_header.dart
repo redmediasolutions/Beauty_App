@@ -14,47 +14,125 @@ class ProfileHeader extends StatelessWidget {
         ? "${_getMonth(user!.metadata.creationTime!.month)} ${user.metadata.creationTime!.year}"
         : "March 2026";
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: user?.uid != null
-          ? FirebaseFirestore.instance
-              .collection('users')
-              .doc(user?.uid)
-              .snapshots()
-          : const Stream.empty(),
-      builder: (context, snapshot) {
-        String displayName = user?.displayName ?? "Guest User";
-        int loyaltyPoints = 450;
+    return StreamBuilder<QuerySnapshot>(
 
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final data = snapshot.data!.data() as Map<String, dynamic>?;
+  stream: user?.uid != null
 
-          if (data != null) {
-            if ((data['name'] ?? '').toString().isNotEmpty) {
-              displayName = data['name'];
-            }
+      ? FirebaseFirestore.instance
 
-            if (data['points'] != null) {
-              loyaltyPoints = data['points'];
-            }
+          .collection('Users')
+
+          .doc(user!.uid)
+
+          .collection('walletTransactions')
+
+          .snapshots()
+
+      : const Stream.empty(),
+
+  builder: (context, snapshot) {
+
+    String displayName =
+
+        user?.displayName ?? "Guest User";
+
+    double loyaltyPoints = 0;
+
+    // Fetch display name separately
+
+    if (user != null) {
+
+      displayName =
+
+          user.displayName ?? "Guest User";
+
+    }
+
+    if (snapshot.hasData) {
+
+      for (final doc in snapshot.data!.docs) {
+
+        final data =
+
+            doc.data() as Map<String, dynamic>;
+
+        final amount =
+
+            ((data['amount'] ?? 0) as num)
+
+                .toDouble();
+
+        final status =
+
+            data['status'] ?? '';
+
+        final type =
+
+            data['type'] ?? 'credit';
+
+        /// AVAILABLE REWARDS
+
+        if (status == 'credited') {
+
+          if (type == 'credit') {
+
+            loyaltyPoints += amount;
+
           }
+
+          if (type == 'debit') {
+
+            loyaltyPoints -= amount;
+
+          }
+
         }
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 0),
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+        /// Approved withdrawals
+
+        if (status == 'approved' &&
+
+            type == 'debit') {
+
+          loyaltyPoints -= amount;
+
+        }
+
+      }
+
+    }
+
+    return Container(
+
+      margin: const EdgeInsets.symmetric(horizontal: 0),
+
+      padding: const EdgeInsets.all(10),
+
+      decoration: BoxDecoration(
+
+        color: Colors.white,
+
+        borderRadius: BorderRadius.circular(24),
+
+        boxShadow: [
+
+          BoxShadow(
+
+            color: Colors.black.withOpacity(0.04),
+
+            blurRadius: 20,
+
+            offset: const Offset(0, 8),
+
           ),
-          child: Row(
-            children: [
+
+        ],
+
+      ),
+
+      child: Row(
+
+        children: [
               /// PROFILE IMAGE
               Container(
                 width: 72,
@@ -128,7 +206,7 @@ class ProfileHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(30),
                       ),
                       child: Text(
-                        "$loyaltyPoints Loyalty Points",
+                          "${loyaltyPoints.toStringAsFixed(2)} Loyalty Points",
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

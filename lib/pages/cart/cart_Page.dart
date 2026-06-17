@@ -28,17 +28,17 @@ class _CartPageState extends State<CartPage> {
   final CartRepository _repository = CartRepository();
   final FirestoreService _firestoreService = FirestoreService();
   late Razorpay _razorpay;
-  
+
   bool _usePoints = false;
   bool _isProcessing = false;
   String _selectedPayment = "cod";
   Map<String, dynamic>? _selectedAddress;
   Map<String, dynamic> _rates = {};
   Map<String, double> _totals = {};
-  
+
   String? _razorpayOrderId;
   String? _razorpayKey;
-  
+
   List<CouponModel> coupons = [];
   CouponModel? selectedCoupon;
   bool isLoadingCoupons = true;
@@ -46,7 +46,6 @@ class _CartPageState extends State<CartPage> {
   double _couponDiscountAmount = 0;
   double _finalCheckoutTotal = 0;
   double _adjustedTaxAmount = 0;
-  double _runningSubtotal = 0;
 
   @override
   void initState() {
@@ -359,7 +358,8 @@ class _CartPageState extends State<CartPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       data['name'] ?? '',
@@ -407,7 +407,9 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _setupRazorpay() {
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (PaymentSuccessResponse response) async {
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, (
+      PaymentSuccessResponse response,
+    ) async {
       if (mounted) {
         context.push('/processingpayment');
       }
@@ -418,15 +420,15 @@ class _CartPageState extends State<CartPage> {
       );
     });
 
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (PaymentFailureResponse response) {
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, (
+      PaymentFailureResponse response,
+    ) {
       if (mounted && context.canPop()) {
         context.pop();
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Payment Failed"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Payment Failed")));
     });
   }
 
@@ -502,7 +504,7 @@ class _CartPageState extends State<CartPage> {
 
   Future<void> _startCheckout() async {
     if (_isProcessing) return;
-    
+
     if (_selectedAddress == null) {
       await showDialog(
         context: context,
@@ -513,10 +515,7 @@ class _CartPageState extends State<CartPage> {
             ),
             title: const Row(
               children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  color: Color(0xFF6F0562),
-                ),
+                Icon(Icons.location_on_outlined, color: Color(0xFF6F0562)),
                 SizedBox(width: 8),
                 Text("Address Required"),
               ],
@@ -563,7 +562,8 @@ class _CartPageState extends State<CartPage> {
 
         for (final doc in cartSnap.docs) {
           final data = doc.data();
-          subtotal += ((data['salePrice'] ?? 0).toDouble()) *
+          subtotal +=
+              ((data['salePrice'] ?? 0).toDouble()) *
               ((data['quantity'] ?? 1).toDouble());
         }
 
@@ -603,17 +603,16 @@ class _CartPageState extends State<CartPage> {
       if (mounted && context.canPop()) {
         context.pop();
       }
-      
+
       _openRazorpay(payable);
-      
     } catch (e) {
       if (mounted && context.canPop()) {
         context.pop();
       }
       debugPrint('Checkout error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Checkout failed")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Checkout failed")));
     } finally {
       if (mounted) {
         setState(() {
@@ -672,7 +671,7 @@ class _CartPageState extends State<CartPage> {
       );
 
       final wooOrderId = result['orderId'].toString();
-      
+
       if (!mounted) return;
       context.go('/ordersuccess', extra: wooOrderId);
     } catch (e) {
@@ -715,15 +714,21 @@ class _CartPageState extends State<CartPage> {
             debugPrint("========== CART ITEMS ==========");
             for (final doc in docs) {
               final data = doc.data() as Map<String, dynamic>;
-              debugPrint("""
-                Product: ${data['name']}
-                ProductId: ${data['productId']}
-                Qty: ${data['quantity']}
-                MRP: ${data['mrp']}
-                SalePrice: ${data['salePrice']}
-                TaxClass: ${data['taxClass']}
-                TaxRate: ${data['taxRate']}
-              """);
+             debugPrint("""
+
+Product: ${data['name']}
+
+ProductId: ${data['productId']}
+
+Qty: ${data['quantity']}
+
+MRP: ${data['mrp']}
+
+SalePrice: ${data['salePrice']}
+
+GST Rate: ${data['taxRate']}
+
+""");
             }
             debugPrint("================================");
 
@@ -819,10 +824,7 @@ class _CartPageState extends State<CartPage> {
             // ========================================
             // CART TOTALS
             // ========================================
-            _totals = _repository.calculateTotals(
-              docs: docs,
-              rates: _rates,
-            );
+            _totals = _repository.calculateTotals(docs: docs, rates: _rates);
 
             final double subtotal = _totals['subtotal'] ?? 0;
             final double shipping = _totals['shipping'] ?? 0;
@@ -830,48 +832,57 @@ class _CartPageState extends State<CartPage> {
             // ========================================
             // COUPON DISCOUNT
             // ========================================
-            _couponDiscountAmount = 0;
-            if (selectedCoupon != null) {
-              _couponDiscountAmount = subtotal * (selectedCoupon!.discount / 100);
-              _couponDiscountAmount = double.parse(
-                _couponDiscountAmount.toStringAsFixed(2),
-              );
-            }
+            // ========================================
+            // COUPON DISCOUNT
+            // ========================================
+            // Coupon calculated on products only
+_couponDiscountAmount = 0;
 
-            // ========================================
-            // POINTS DISCOUNT
-            // ========================================
-            final double pointsDiscountAmount = _usePoints ? 50 : 0;
+if (selectedCoupon != null) {
+  _couponDiscountAmount =
+      subtotal * (selectedCoupon!.discount / 100);
 
-            // ========================================
-            // TOTAL DISCOUNT
-            // ========================================
-            final double aggregateTotalDiscount = _couponDiscountAmount + pointsDiscountAmount;
+  _couponDiscountAmount = double.parse(
+    _couponDiscountAmount.toStringAsFixed(2),
+  );
+}
 
-            // ========================================
-            // GST CALCULATION
-            // SUPPORTS ANY GST RATE
-            // ========================================
-            final Map<int, double> gstBreakup = {};
+// ========================================
+// GST CALCULATION FROM FIRESTORE TAX CLASS
+// ========================================
+// ========================================
+// GST CALCULATION FROM taxRate
+// ========================================
+
+final Map<int, double> gstBreakup = {};
+
 double totalTax = 0;
 
 for (final doc in docs) {
+
   final data =
       doc.data() as Map<String, dynamic>;
 
   final salePrice =
-      (data['salePrice'] as num?)?.toDouble() ?? 0;
+      (data['salePrice'] as num?)
+              ?.toDouble() ??
+          0;
 
   final qty =
-      (data['quantity'] as num?)?.toInt() ?? 1;
+      (data['quantity'] as num?)
+              ?.toInt() ??
+          1;
 
   final gstRate =
-      (data['TaxRate'] as num?)?.toDouble() ??
-      (data['taxRate'] as num?)?.toDouble() ??
-      0;
+      (data['taxRate'] as num?)
+              ?.toDouble() ??
+          18;
+
+  final taxableAmount =
+      salePrice * qty;
 
   final lineTax =
-      (salePrice * qty) *
+      taxableAmount *
       (gstRate / 100);
 
   totalTax += lineTax;
@@ -883,7 +894,7 @@ for (final doc in docs) {
   );
 
   debugPrint(
-    "${data['name']} => GST $gstRate% => Tax ₹$lineTax",
+    "${data['name']} | GST=$gstRate% | Taxable=₹${taxableAmount.toStringAsFixed(2)} | Tax=₹${lineTax.toStringAsFixed(2)}",
   );
 }
 
@@ -891,42 +902,72 @@ _adjustedTaxAmount =
     double.parse(
       totalTax.toStringAsFixed(2),
     );
-            
+
             // ========================================
             // DISCOUNTED SUBTOTAL
             // ========================================
-            _runningSubtotal = subtotal - aggregateTotalDiscount;
-            if (_runningSubtotal < 0) {
-              _runningSubtotal = 0;
-            }
 
             debugPrint(
-
-  "Payment=$_selectedPayment "
-
-  "Rates=$_rates "
-
-  "COD=${_rates['cod_charges']}",
-
-);
+              "Payment=$_selectedPayment "
+              "Rates=$_rates "
+              "COD=${_rates['cod_charges']}",
+            );
 
             // ========================================
             // COD CHARGES
             // ========================================
             final double codChargesAmount =
     _selectedPayment == "cod"
-        ? (_runningSubtotal >= 500
+        ? (subtotal >= 999
             ? 29.0
             : 49.0)
         : 0.0;
 
+        // ========================================
+// PRE-DISCOUNT TOTAL
+// ========================================
+
+
+// ========================================
+// POINTS DISCOUNT
+// ========================================
+final double pointsDiscountAmount =
+    _usePoints ? 50 : 0;
+
+final double discountedSubtotal =
+    subtotal -
+    _couponDiscountAmount -
+    pointsDiscountAmount;
+
+final double safeSubtotal =
+    discountedSubtotal < 0
+        ? 0
+        : discountedSubtotal;
+// ========================================
+// TOTAL DISCOUNT
+// ========================================
+
             // ========================================
             // FINAL TOTAL
             // ========================================
-            _finalCheckoutTotal = _runningSubtotal + _adjustedTaxAmount + shipping + codChargesAmount;
-            _finalCheckoutTotal = double.parse(_finalCheckoutTotal.toStringAsFixed(2));
+           _finalCheckoutTotal =
 
+    safeSubtotal +
+
+    _adjustedTaxAmount +
+
+    shipping +
+
+    codChargesAmount;
+
+_finalCheckoutTotal = double.parse(
+
+  _finalCheckoutTotal.toStringAsFixed(2),
+
+);
             return SingleChildScrollView(
+
+              
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
               child: Column(
@@ -979,14 +1020,12 @@ _adjustedTaxAmount =
                         child: CartItemWidget(
                           name: data['name'] ?? '',
                           mrp: (data['mrp'] ?? 0).toDouble(),
-                          salePrice: (data['salePrice'] ?? data['mrp'] ?? 0).toDouble(),
+                          salePrice: (data['salePrice'] ?? data['mrp'] ?? 0)
+                              .toDouble(),
                           imageUrl: data['image'] ?? '',
                           quantity: data['quantity'] ?? 1,
                           onIncrement: () async {
-                            await _repository.updateQty(
-                              docId: docId,
-                              delta: 1,
-                            );
+                            await _repository.updateQty(docId: docId, delta: 1);
                           },
                           onDecrement: () async {
                             await _repository.updateQty(
@@ -1002,6 +1041,37 @@ _adjustedTaxAmount =
                     },
                   ),
                   const SizedBox(height: 30),
+                  /// ➕ ADD MORE PRODUCTS
+
+SizedBox(
+  width: double.infinity,
+  height: 52,
+  child: ElevatedButton.icon(
+    onPressed: () {
+      context.go('/AllProducts');
+    },
+    icon: const Icon(
+      Icons.add,
+      color: Colors.white,
+    ),
+    label: const Text(
+      "Add More Items",
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF6F0562),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+      ),
+    ),
+  ),
+),
+
+const SizedBox(height: 30),
 
                   /// OFFERS & POINTS SECTION
                   Row(
@@ -1113,7 +1183,6 @@ _adjustedTaxAmount =
                     ),
                     const SizedBox(height: 24),
                   ],
-
                   /// BILL SUMMARY
                   BillSummaryWidget(
                     totalMrp: totalMrp,

@@ -41,6 +41,23 @@ class _ProductsViewState extends State<ProductsView> {
 
   final ScrollController _scrollController = ScrollController();
 
+  Future<bool> hasRequestedStockNotification(
+  String productId,
+) async {
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) return false;
+
+  final snapshot = await FirebaseFirestore.instance
+      .collection('stock_notifications')
+      .where('userId', isEqualTo: user.uid)
+      .where('productId', isEqualTo: productId)
+      .limit(1)
+      .get();
+
+  return snapshot.docs.isNotEmpty;
+}
+
   Future<void> _addToCart(ProductDetail p) async {
     try {
       setState(() => _isAdding = true);
@@ -84,10 +101,12 @@ class _ProductsViewState extends State<ProductsView> {
         print("========== ADD TO CART ==========");
 
 print("Product: ${p.name}");
-print("TaxRate: ${p.gstRate}");
+print("Tax Status: ${p.taxStatus}");
+
+print("Tax Class: ${p.taxClass}");
 
 print("================================");
-        await cartItemRef.set({
+       await cartItemRef.set({
   'productId': p.id,
 
   'image':
@@ -106,7 +125,11 @@ print("================================");
   'salePrice':
       p.salePrice ?? p.price,
 
-  'taxRate': p.gstRate,
+  'taxStatus': p.taxStatus,
+
+  'taxClass': p.taxClass,
+
+  'taxRate': p.taxRate,
 
   'quantity': quantity,
 
@@ -914,7 +937,7 @@ class _additionalimagesrow extends StatelessWidget {
   }
 }
 
-class FloatingAddToCartBar extends StatelessWidget {
+class FloatingAddToCartBar extends StatefulWidget {
   final ProductDetail p;
   final int quantity;
   final bool isAdding;
@@ -933,10 +956,161 @@ class FloatingAddToCartBar extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  State<FloatingAddToCartBar> createState() => _FloatingAddToCartBarState();
+}
+
+class _FloatingAddToCartBarState
+
+    extends State<FloatingAddToCartBar> {
+
+  bool _alreadyRequested = false;
+
+  bool _loading = true;
+
+  @override
+
+  void initState() {
+
+    super.initState();
+
+    _checkRequest();
+
+  }
+
+  Future<void> _checkRequest() async {
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+
+      setState(() => _loading = false);
+
+      return;
+
+    }
+
+    final snapshot = await FirebaseFirestore.instance
+
+        .collection('stock_notifications')
+
+        .where('userId', isEqualTo: user.uid)
+
+        .where(
+
+          'productId',
+
+          isEqualTo: widget.p.id,
+
+        )
+
+        .limit(1)
+
+        .get();
+
+    if (mounted) {
+
+      setState(() {
+
+        _alreadyRequested =
+
+            snapshot.docs.isNotEmpty;
+
+        _loading = false;
+
+      });
+
+    }
+
+  }
+  @override
+    Widget build(BuildContext context) {
     const Color primaryColor = Color(0xFF8C277B);
 
-    if (!p.canAddToCart) return const SizedBox.shrink();
+if (!widget.p.canAddToCart) {
+  if (_loading) {
+    return const SizedBox(
+      height: 65,
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 20,
+      vertical: 20,
+    ),
+    child: SizedBox(
+      height: 65,
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _alreadyRequested
+            ? null
+            : () async {
+                final user =
+                    FirebaseAuth.instance.currentUser;
+
+                if (user == null) return;
+
+                await FirebaseFirestore.instance
+                    .collection(
+                      'stock_notifications',
+                    )
+                    .add({
+                  'userId': user.uid,
+                  'email': user.email,
+                  'productId': widget.p.id,
+                  'productName':
+                      widget.p.name,
+                  'createdAt':
+                      FieldValue
+                          .serverTimestamp(),
+                  'status': 'pending',
+                });
+
+                if (mounted) {
+                  setState(() {
+                    _alreadyRequested =
+                        true;
+                  });
+                }
+              },
+        icon: Icon(
+          _alreadyRequested
+              ? Icons.check_circle
+              : Icons.notifications_active,
+        ),
+        label: Text(
+          _alreadyRequested
+              ? "WE'LL UPDATE YOU WHEN IT'S AVAILABLE"
+              : "NOTIFY WHEN AVAILABLE",
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              _alreadyRequested
+                  ? Colors.green
+                  : const Color(
+                      0xFF8C277B,
+                    ),
+          foregroundColor:
+              Colors.white,
+          disabledBackgroundColor:
+              Colors.green,
+          disabledForegroundColor:
+              Colors.white,
+          shape:
+              RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(
+              40,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
@@ -956,18 +1130,18 @@ class FloatingAddToCartBar extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
-                  onPressed: quantity > 1 ? onDecrease : null,
+                  onPressed: widget.quantity > 1 ? widget.onDecrease : null,
                   icon: const Icon(Icons.remove, color: Colors.white),
                 ),
                 Text(
-                  quantity.toString(),
+                  widget.quantity.toString(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 IconButton(
-                  onPressed: onIncrease,
+                  onPressed: widget.onIncrease,
                   icon: const Icon(Icons.add, color: Colors.white),
                 ),
               ],
@@ -979,7 +1153,7 @@ class FloatingAddToCartBar extends StatelessWidget {
           /// 🛒 RIGHT PILL (ADD TO CART)
           Expanded(
             child: GestureDetector(
-              onTap: isAdding ? null : onAdd,
+              onTap: widget.isAdding ? null : widget.onAdd,
               child: Container(
                 height: 65,
                 decoration: BoxDecoration(
@@ -993,7 +1167,7 @@ class FloatingAddToCartBar extends StatelessWidget {
                   ],
                 ),
                 child: Center(
-                  child: isAdding
+                  child: widget.isAdding
                       ? const SizedBox(
                           height: 20,
                           width: 20,

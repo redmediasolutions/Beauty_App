@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'summary_row_widget.dart';
 
-class BillSummaryWidget extends StatelessWidget {
+class BillSummaryWidget extends StatefulWidget {
   final double subtotal;
   final double tax;
   final double shipping;
@@ -10,7 +10,6 @@ class BillSummaryWidget extends StatelessWidget {
   final double couponDiscount;
   final double codCharges;
   final double totalMrp;
-
   final Map<int, double> gstBreakup;
 
   const BillSummaryWidget({
@@ -27,32 +26,31 @@ class BillSummaryWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final double pointsDiscount =
-        usePoints ? 50 : 0;
+  State<BillSummaryWidget> createState() => _BillSummaryWidgetState();
+}
 
-    final double totalDiscount =
-        couponDiscount +
+class _BillSummaryWidgetState extends State<BillSummaryWidget> {
+  bool _showGstBreakup = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double pointsDiscount = widget.usePoints ? 50 : 0;
+
+    final double saleTotal = widget.subtotal;
+
+    final double grandTotal =
+        saleTotal +
+        widget.tax +
+        widget.shipping +
+        widget.codCharges;
+
+    final double payableTotal =
+        grandTotal -
+        widget.couponDiscount -
         pointsDiscount;
 
-    final double saleTotal =
-        subtotal;
-
-    final double discountedSubtotal =
-        (saleTotal - totalDiscount)
-            .clamp(0.0, double.infinity);
-
-    final sortedGstEntries =
-
-    gstBreakup.entries.toList()
-
-      ..sort(
-
-        (a, b) =>
-
-            a.key.compareTo(b.key),
-
-      );
+    final sortedGstEntries = widget.gstBreakup.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -64,132 +62,146 @@ class BillSummaryWidget extends StatelessWidget {
         children: [
           /// MRP
           Row(
-
-  mainAxisAlignment:
-
-      MainAxisAlignment.spaceBetween,
-
-  children: [
-
-    const Text(
-
-      "MRP",
-
-      style: TextStyle(
-
-        fontSize: 14,
-
-        color: Colors.grey,
-
-      ),
-
-    ),
-
-    Text(
-
-      "₹${totalMrp.toStringAsFixed(0)}",
-
-      style: const TextStyle(
-
-        fontSize: 14,
-
-        color: Colors.grey,
-
-        decoration:
-
-            TextDecoration.lineThrough,
-
-      ),
-
-    ),
-
-  ],
-
-),
-
-          const SizedBox(height: 10),
-
-          /// SALE TOTAL
-          SummaryRowWidget(
-            label: "Sale Total",
-            value:
-                "₹${saleTotal.toStringAsFixed(0)}",
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "MRP",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              Text(
+                "₹${widget.totalMrp.toStringAsFixed(0)}",
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+            ],
           ),
 
-          /// COUPON
-          if (couponDiscount > 0) ...[
-            const SizedBox(height: 10),
-            SummaryRowWidget(
-              label: "Coupon Discount",
-              value:
-                  "-₹${couponDiscount.toStringAsFixed(0)}",
-            ),
-          ],
+          const SizedBox(height: 12),
 
-          /// WALLET
-          if (pointsDiscount > 0) ...[
-            const SizedBox(height: 10),
-            SummaryRowWidget(
-              label: "Wallet Discount",
-              value:
-                  "-₹${pointsDiscount.toStringAsFixed(0)}",
-            ),
-          ],
-
-          const Divider(height: 24),
-
-          /// SUBTOTAL AFTER DISCOUNT
+          /// SUBTOTAL
           SummaryRowWidget(
             label: "Subtotal",
-            value:
-                "₹${discountedSubtotal.toStringAsFixed(0)}",
+            value: "₹${saleTotal.toStringAsFixed(2)}",
             isSubtotal: true,
           ),
 
-          /// GST BREAKUP
-          if (gstBreakup.isNotEmpty) ...[
-  const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-  ...sortedGstEntries.map(
-    (entry) => Padding(
-      padding: const EdgeInsets.only(
-        top: 10,
-      ),
-      child: SummaryRowWidget(
-        label: "GST (${entry.key}%)",
-        value:
-            "+₹${entry.value.toStringAsFixed(2)}",
-      ),
+          /// GST SECTION
+          if (widget.gstBreakup.isNotEmpty) ...[
+            InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () {
+                setState(() {
+                  _showGstBreakup = !_showGstBreakup;
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          "Total GST",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _showGstBreakup
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                      ],
+                    ),
+                    Text(
+                      "₹${widget.tax.toStringAsFixed(2)}",
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 250),
+              crossFadeState: _showGstBreakup
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              firstChild: Column(
+                children: sortedGstEntries.map((entry) {
+                  return Padding(
+                    padding: const EdgeInsets.only(
+                      left: 12,
+                      top: 8,
+                    ),
+                    child: 
+                    
+                    Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    SummaryRowWidget(
+      label: "GST (${entry.key}%)",
+      value: "₹${entry.value.toStringAsFixed(2)}",
     ),
-  ),
 
-  const SizedBox(height: 10),
+    if (entry.key == 5)
+      const Padding(
+        padding: EdgeInsets.only(
+          left: 4,
+          top: 2,
+        ),
+        child: Text(
+          "Applicable on Soap, Shampoo & Hair Oil",
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ),
+  ],
+),
+                  );
+                }).toList(),
+              ),
+              secondChild: const SizedBox.shrink(),
+            ),
+          ],
 
-  SummaryRowWidget(
-    label: "Total GST",
-    value:
-        "₹${tax.toStringAsFixed(2)}",
-  ),
-],
-
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
 
           /// SHIPPING
           SummaryRowWidget(
             label: "Shipping",
-            value:
-                shipping <= 0
-                    ? "FREE"
-                    : "+₹${shipping.toStringAsFixed(0)}",
+            value: widget.shipping <= 0
+                ? "FREE"
+                : "+₹${widget.shipping.toStringAsFixed(0)}",
           ),
 
           /// COD
-          if (codCharges > 0) ...[
+          if (widget.codCharges > 0) ...[
             const SizedBox(height: 10),
             SummaryRowWidget(
               label: "COD Charges",
               value:
-                  "+₹${codCharges.toStringAsFixed(0)}",
+                  "+₹${widget.codCharges.toStringAsFixed(0)}",
             ),
           ],
 
@@ -197,9 +209,37 @@ class BillSummaryWidget extends StatelessWidget {
 
           /// GRAND TOTAL
           SummaryRowWidget(
-            label: "Total Amount",
-            value:
-                "₹${total.toStringAsFixed(0)}",
+            label: "Grand Total",
+            value: "₹${grandTotal.toStringAsFixed(2)}",
+            isTotal: true,
+          ),
+
+          /// COUPON DISCOUNT
+          if (widget.couponDiscount > 0) ...[
+            const SizedBox(height: 10),
+            SummaryRowWidget(
+              label: "Coupon Discount",
+              value:
+                  "-₹${widget.couponDiscount.toStringAsFixed(2)}",
+            ),
+          ],
+
+          /// WALLET DISCOUNT
+          if (pointsDiscount > 0) ...[
+            const SizedBox(height: 10),
+            SummaryRowWidget(
+              label: "Wallet Discount",
+              value:
+                  "-₹${pointsDiscount.toStringAsFixed(2)}",
+            ),
+          ],
+
+          const Divider(height: 30),
+
+          /// PAYABLE TOTAL
+          SummaryRowWidget(
+            label: "Payable Total",
+            value: "₹${payableTotal.toStringAsFixed(2)}",
             isTotal: true,
           ),
         ],

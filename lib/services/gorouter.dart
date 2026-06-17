@@ -169,7 +169,6 @@ GoRoute(
       ShellRoute(
         builder: (context, state, child) {
           return ShellPage(
-            cartCount: 0,
             child: child,
           );
         },

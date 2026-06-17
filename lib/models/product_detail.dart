@@ -56,7 +56,11 @@ class ProductDetail {
   final List<ProductImage>
       addimages;
 
-  final int gstRate;
+final String taxClass;
+
+final String taxStatus;
+
+final double taxRate;
 
   ProductDetail({
     required this.id,
@@ -73,7 +77,10 @@ class ProductDetail {
     this.relatedProducts = const [],
 
     // TAX
-    required this.gstRate,
+    // TAX
+required this.taxClass,
+required this.taxStatus,
+required this.taxRate,
 
     required this.manageStock,
     required this.stockStatus,
@@ -452,31 +459,60 @@ class ProductDetail {
 // GST RATE
 // =====================================
 
-int gstRate = 18;
+// =====================================
+// TAX
+// =====================================
 
-final metaData =
-    json['meta_data'] as List?;
+final String taxClass =
+    json['tax_class']
+            ?.toString() ??
+        '';
 
-if (metaData != null) {
+final String taxStatus =
+    json['tax_status']
+            ?.toString() ??
+        'taxable';
 
-  for (final item in metaData) {
+// =====================================
+// GST RATE FROM META
+// =====================================
 
-    if (item is Map<String, dynamic>) {
+double taxRate = 18;
 
-      if (item['key'] == 'gst_rate') {
+final List<dynamic> metaData =
 
-        gstRate =
-            int.tryParse(
-              item['value']
-                      ?.toString() ??
-                  '',
+    json['meta_data'] as List? ?? [];
+
+for (final item in metaData) {
+
+  final key =
+
+      item['key']?.toString();
+
+  if (key == 'gst_rate') {
+
+    final parsedRate =
+
+        double.tryParse(
+
+              item['value']?.toString() ?? '',
+
             ) ??
+
             18;
 
-        break;
-      }
-    }
+    taxRate =
+
+        parsedRate <= 0
+
+            ? 18
+
+            : parsedRate;
+
+    break;
+
   }
+
 }
 
     // =====================================
@@ -538,7 +574,9 @@ if (metaData != null) {
       addimages:
           addimages,
 
-      gstRate: gstRate,
+      taxClass: taxClass,
+taxStatus: taxStatus,
+taxRate: taxRate,
 
 
       price:

@@ -35,6 +35,9 @@ async function calculateCartTotals({
   couponDiscount?: number;
 }) {
 
+  const to2 = (value: number) =>
+    Number(value.toFixed(2));
+
   const cartSnap = await admin
     .firestore()
     .collection("carts")
@@ -46,8 +49,11 @@ async function calculateCartTotals({
   let totalMrp = 0;
   let productSavings = 0;
 
-  // Dynamic GST buckets
   const gstSubtotals: Record<number, number> = {};
+
+  // =====================================
+  // CART LOOP
+  // =====================================
 
   cartSnap.forEach((doc) => {
 
@@ -62,13 +68,6 @@ async function calculateCartTotals({
     const salePrice =
       Number(item.salePrice || mrp);
 
-    const gstRate =
-      Number(
-        item.TaxRate ??
-        item.taxRate ??
-        0
-      );
-
     const lineTotal =
       salePrice * qty;
 
@@ -80,6 +79,35 @@ async function calculateCartTotals({
     productSavings +=
       (mrp - salePrice) * qty;
 
+    // =====================================
+    // GST RATE LOGIC
+    // SAME AS CART PAGE
+    // =====================================
+
+    let gstRate =
+      Number(
+        item.taxRate ??
+        item.TaxRate ??
+        0
+      );
+
+    if (gstRate <= 0) {
+
+      const taxClass =
+        String(
+          item.taxClass || ""
+        ).toLowerCase();
+
+      if (
+        taxClass ===
+        "reduced-rate"
+      ) {
+        gstRate = 5;
+      } else {
+        gstRate = 18;
+      }
+    }
+
     gstSubtotals[gstRate] =
       (gstSubtotals[gstRate] || 0) +
       lineTotal;
@@ -89,29 +117,31 @@ async function calculateCartTotals({
     );
   });
 
+  subtotal =
+    to2(subtotal);
+
+  totalMrp =
+    to2(totalMrp);
+
+  productSavings =
+    to2(productSavings);
+
   // =====================================
   // SHIPPING
+  // SAME AS CART PAGE
   // =====================================
 
   const shipping =
-    subtotal <= FREE_SHIPPING_THRESHOLD
-      ? SHIPPING_BELOW_THRESHOLD
-      : SHIPPING_ABOVE_THRESHOLD;
+    subtotal >= 499
+      ? 0
+      : 49;
 
   // =====================================
   // COUPON
   // =====================================
 
-  const aggregateDiscount =
-    couponDiscount;
-
-  const taxableTotal =
-    Object.values(gstSubtotals)
-      .reduce(
-        (sum, value) =>
-          sum + value,
-        0
-      );
+  couponDiscount =
+    to2(couponDiscount);
 
   const taxableBreakup:
     Record<number, number> = {};
@@ -120,6 +150,10 @@ async function calculateCartTotals({
     Record<number, number> = {};
 
   let tax = 0;
+
+  // =====================================
+  // GST BREAKUP
+  // =====================================
 
   for (
     const [rateStr, amount]
@@ -131,76 +165,41 @@ async function calculateCartTotals({
     const rate =
       Number(rateStr);
 
-    const discountShare =
-      taxableTotal > 0
-        ? aggregateDiscount *
-          (amount /
-            taxableTotal)
-        : 0;
-
-    const taxableAmount =
-      Math.max(
-        amount -
-          discountShare,
-        0
-      );
+    const taxableAmount = amount;
 
     const gstAmount =
-      Math.round(
-        taxableAmount *
-          (rate / 100) *
-          100
-      ) / 100;
+      taxableAmount *
+      (rate / 100);
 
     taxableBreakup[rate] =
-      Math.round(
-        taxableAmount * 100
-      ) / 100;
+      to2(taxableAmount);
 
     gstBreakup[rate] =
-      gstAmount;
+      to2(gstAmount);
 
     tax += gstAmount;
   }
 
   tax =
-    Math.round(
-      tax * 100
-    ) / 100;
+    to2(tax);
 
   // =====================================
-  // LEGACY VALUES
+  // SUBTOTAL AFTER DISCOUNT
   // =====================================
 
-  const taxable18 =
-    taxableBreakup[18] || 0;
+const discountedSubtotal =
 
-  const taxable5 =
-    taxableBreakup[5] || 0;
-
-  const gst18 =
-    gstBreakup[18] || 0;
-
-  const gst5 =
-    gstBreakup[5] || 0;
+  subtotal;
 
   // =====================================
   // COD
+  // SAME AS CART PAGE
   // =====================================
-
-  const discountedSubtotal =
-    Math.round(
-      Math.max(
-        subtotal -
-          aggregateDiscount,
-        0
-      ) * 100
-    ) / 100;
 
   const codCharge =
     paymentMethod === "cod"
       ? (
-          discountedSubtotal >= 500
+          discountedSubtotal >= 999
             ? 29
             : 49
         )
@@ -210,15 +209,13 @@ async function calculateCartTotals({
   // TOTALS
   // =====================================
 
-  const grossTotal =
-    Math.round(
-      (
-        discountedSubtotal +
-        tax +
-        shipping +
-        codCharge
-      ) * 100
-    ) / 100;
+const grossTotal =
+  to2(
+    subtotal +
+    tax +
+    shipping +
+    codCharge
+  );
 
   const userDoc =
     await admin
@@ -233,21 +230,22 @@ async function calculateCartTotals({
         ?.walletBalance || 0
     );
 
-  const walletUsed =
-    useWallet
-      ? Math.min(
+const walletUsed =
+  useWallet
+    ? to2(
+        Math.min(
           walletBalance,
           grossTotal
         )
-      : 0;
+      )
+    : 0;
 
-  const finalPayable =
-    Math.round(
-      (
-        grossTotal -
-        walletUsed
-      ) * 100
-    ) / 100;
+const finalPayable =
+  to2(
+    grossTotal -
+    couponDiscount -
+    walletUsed
+  );
 
   return {
 
@@ -263,13 +261,17 @@ async function calculateCartTotals({
 
     gstBreakup,
 
-    taxable18,
+    taxable18:
+      taxableBreakup[18] || 0,
 
-    taxable5,
+    taxable5:
+      taxableBreakup[5] || 0,
 
-    gst18,
+    gst18:
+      gstBreakup[18] || 0,
 
-    gst5,
+    gst5:
+      gstBreakup[5] || 0,
 
     tax,
 
@@ -282,7 +284,14 @@ async function calculateCartTotals({
     discountedSubtotal,
 
     discountedTotal:
-      grossTotal,
+
+  to2(
+
+    grossTotal -
+
+    couponDiscount
+
+  ),
 
     walletBalance,
 
@@ -689,56 +698,71 @@ export const createSecureOrder = onCall(
         paymentMethod === "cod"
           ? "pending"
           : "payment_pending",
-
+      
+      
       // =====================================
       // 🛒 ITEMS SNAPSHOT
       // =====================================
 
       items:
-        cartSnap.docs.map(
-          (doc) => {
+  cartSnap.docs.map(
+    (doc) => {
 
-            const item =
-              doc.data();
+      const item =
+        doc.data();
 
-            return {
+      let taxRate =
+        Number(
+          item.taxRate ??
+          item.TaxRate ??
+          0
+        );
 
-              productId:
-                item.productId,
+      // =====================================
+      // GST FALLBACK
+      // =====================================
 
-              name:
-                item.name || "",
+      if (taxRate <= 0) {
 
-              image:
-                item.image || "",
+        const taxClass =
+          String(
+            item.taxClass || ""
+          ).toLowerCase();
 
-              quantity:
-                item.quantity || 1,
+        taxRate =
+          taxClass ===
+          "reduced-rate"
+            ? 5
+            : 18;
+      }
 
-              salePrice:
-                item.salePrice || 0,
+      return {
 
-              mrp:
-                item.mrp || 0,
+        productId:
+          item.productId,
 
-              taxClass:
-                item.taxClass || "",
+        name:
+          item.name || "",
 
-              taxRate:
+        image:
+          item.image || "",
 
-  Number(
+        quantity:
+          item.quantity || 1,
 
-    item.TaxRate ??
+        salePrice:
+          item.salePrice || 0,
 
-    item.taxRate ??
+        mrp:
+          item.mrp || 0,
 
-    0
+        taxClass:
+          item.taxClass || "",
 
+        taxRate,
+      };
+    }
   ),
-
-            };
-          }
-        ),
 
       createdAt:
         admin.firestore
@@ -1178,31 +1202,64 @@ await admin
             referrerUid,
 
           items:
-            cartSnap.docs.map(
-              (doc) => {
+  cartSnap.docs.map(
+    (doc) => {
 
-                const item =
-                  doc.data();
+      const item =
+        doc.data();
 
-                return {
-  productId: item.productId,
-  name: item.name || "",
-  image: item.image || "",
-  quantity: item.quantity || 1,
-  salePrice: item.salePrice || 0,
-  mrp: item.mrp || 0,
+      let taxRate =
+        Number(
+          item.taxRate ??
+          item.TaxRate ??
+          0
+        );
 
-  taxClass: item.taxClass || "",
+      // =====================================
+      // GST FALLBACK
+      // =====================================
 
-  taxRate:
-    Number(
-      item.TaxRate ??
-      item.taxRate ??
-      0
-    ),
-};
-              }
-            ),
+      if (taxRate <= 0) {
+
+        const taxClass =
+          String(
+            item.taxClass || ""
+          ).toLowerCase();
+
+        taxRate =
+          taxClass ===
+          "reduced-rate"
+            ? 5
+            : 18;
+      }
+
+      return {
+
+        productId:
+          item.productId,
+
+        name:
+          item.name || "",
+
+        image:
+          item.image || "",
+
+        quantity:
+          item.quantity || 1,
+
+        salePrice:
+          item.salePrice || 0,
+
+        mrp:
+          item.mrp || 0,
+
+        taxClass:
+          item.taxClass || "",
+
+        taxRate,
+      };
+    }
+  ),
 
           billing,
 
@@ -1894,19 +1951,25 @@ async function createWooOrder({
     });
   });
 
-  const feeLines: any[] = [];
+  const   feeLines: any[] = [];
 
   // ========================================
   // COUPON DISCOUNT
   // ========================================
 
-  if (couponDiscount > 0) {
-    feeLines.push({
-      name: `Coupon (${couponCode})`,
-      total: (-couponDiscount).toFixed(2),
-      tax_status: "none",
-    });
-  }
+if (couponDiscount > 0) {
+  feeLines.push({
+    name: "Coupon Discount",
+    total: (-couponDiscount).toFixed(2),
+    tax_status: "none",
+  });
+}
+
+feeLines.push({
+  name: "Total Tax",
+  total: tax.toFixed(2),
+  tax_status: "none",
+});
 
   // ========================================
   // WALLET DISCOUNT
@@ -1924,13 +1987,13 @@ async function createWooOrder({
   // COD CHARGE
   // ========================================
 
-  if (codCharge > 0) {
-    feeLines.push({
-      name: "Cash on Delivery Charges",
-      total: codCharge.toFixed(2),
-      tax_status: "none",
-    });
-  }
+if (codCharge > 0) {
+  feeLines.push({
+    name: "Cash on Delivery Charges",
+    total: codCharge.toFixed(2),
+    tax_status: "none",
+  });
+}
 
   // ========================================
   // CREATE ORDER
@@ -1970,8 +2033,6 @@ async function createWooOrder({
     // CLOUD FUNCTIONS IS SOURCE OF TRUTH
     // ========================================
 
-    tax_lines: [],
-
     fee_lines: feeLines,
 
     meta_data: [
@@ -1984,6 +2045,11 @@ async function createWooOrder({
         key: "app_uid",
         value: uid,
       },
+
+      {
+    key: "created_by_app",
+    value: "yes",
+  },
 
       // ------------------------------------
       // TAX BREAKDOWN
@@ -2069,6 +2135,12 @@ async function createWooOrder({
       },
     ],
   };
+
+  console.log(
+
+  JSON.stringify(body, null, 2)
+
+);
 
   const response = await axios.post(
     "https://store.gladskin.in/wp-json/wc/v3/orders",
