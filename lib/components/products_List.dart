@@ -115,7 +115,7 @@ class _ProductsListState
 child: CachedNetworkImage(
   imageUrl: imageUrl,
 
-  fit: BoxFit.cover,
+  fit: BoxFit.contain,
 
   width: double.infinity,
   height: double.infinity,
@@ -137,7 +137,7 @@ child: CachedNetworkImage(
   errorWidget: (context, url, error) {
     return CachedNetworkImage(
       imageUrl: fallbackImage,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
 
       errorWidget: (_, __, ___) {
         return Container(

@@ -142,20 +142,20 @@ class _AllProductsState extends State<AllProducts> {
     setState(() => _isLoading = true);
 
     try {
+      const int perPage = 50;
       final newProducts = await APIService.fetchProducts(
         page: _currentPage,
-        perPage: 10,
+        perPage: perPage,
         categoryId: _selectedSubCategoryId,
       );
 
       setState(() {
         _isLoading = false;
-
-        if (newProducts.isEmpty) {
+        _currentPage++;
+        _products.addAll(newProducts);
+        // Stop when API returns fewer items than requested (last page reached)
+        if (newProducts.length < perPage) {
           _hasMore = false;
-        } else {
-          _currentPage++;
-          _products.addAll(newProducts);
         }
       });
     } catch (e) {

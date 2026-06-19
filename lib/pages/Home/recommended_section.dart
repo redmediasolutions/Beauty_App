@@ -118,7 +118,7 @@ int _discountPercent(Productsmodel product) {
                                 primary.image ??
                                     "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
                                 height: 200,
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                               ),
                             ),
                           ),
@@ -334,7 +334,7 @@ class _CompactRecommendationTile extends StatelessWidget {
                     "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
                 height: 56,
                 width: 56,
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(width: 12),

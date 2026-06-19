@@ -61,7 +61,7 @@ final double totalSavings =
                     imageUrl,
                     width: 90,
                     height: 110,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                   )
                 : Container(width: 90, height: 110, color: Colors.grey[200]),
           ),

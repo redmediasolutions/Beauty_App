@@ -126,7 +126,7 @@ class _SearchProductCardState
                                       .imageUrl!,
 
                                   fit:
-                                      BoxFit.cover,
+                                      BoxFit.contain,
 
                                   width:
                                       double.infinity,

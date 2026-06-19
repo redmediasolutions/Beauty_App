@@ -23,7 +23,7 @@ class GalleryImage extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         child: Image.network(
           imageUrl,
-          fit: BoxFit.cover,
+          fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return const Icon(Icons.image_not_supported);
           },

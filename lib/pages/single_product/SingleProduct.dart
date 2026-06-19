@@ -530,11 +530,10 @@ print("================================");
         ),
         // =========================== IMAGE CAROUSEL SECTION =========================
         CarouselSlider(
-          // carouselController: _carouselController,
           options: CarouselOptions(
-            height: 450, // Standard height for hero section
-            // viewportFraction: 0.9, // Shows a peek of the next image
-            enlargeCenterPage: true, // Adds a nice scaling effect
+            height: 420,
+            viewportFraction: 1.0,
+            enlargeCenterPage: false,
             enableInfiniteScroll: allImages.length > 1,
             autoPlay: false,
             onPageChanged: (index, reason) {
@@ -544,34 +543,35 @@ print("================================");
             },
           ),
           items: allImages.map((imageUrl) {
-            return Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F7),
-                borderRadius: BorderRadius.circular(24), // <--- THE CURVE
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(
-                  24,
-                ), // Matches the container
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.broken_image,
-                    size: 50,
-                    color: Colors.grey,
-                  ),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F7),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
-              ).animate().fadeIn(duration: 800.ms),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) => const Icon(
+                      Icons.broken_image,
+                      size: 50,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ).animate().fadeIn(duration: 800.ms),
+              ),
             );
           }).toList(),
         ),
@@ -940,7 +940,7 @@ class _additionalimagesrow extends StatelessWidget {
                 child: Image.network(
                   img.url,
                   width: double.infinity,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   loadingBuilder: (context, child, progress) {
                     if (progress == null) return child;
                     return const SizedBox(

@@ -87,13 +87,24 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
     if (response.statusCode == 200) {
       final List list = jsonDecode(response.body);
 
-      final filtered = list.where((e) => _isAllowedProduct(e)).toList();
+      debugPrint('🛍️ [API] fetchProducts → URL: $requestUrl');
+      debugPrint('🛍️ [API] Raw count from API: ${list.length}');
 
-return filtered
-    .map((e) => Productsmodel.fromJson(e))
-    .toList();
+      // Skip the category-49 gate for subcategory fetches — WooCommerce products
+      // assigned only to a subcategory don't carry the parent category ID.
+      final filtered = (categoryId == null || categoryId == 49)
+          ? list.where((e) => _isAllowedProduct(e)).toList()
+          : list;
+
+      debugPrint('🛍️ [API] After filter: ${filtered.length}');
+
+      return filtered.map((e) => Productsmodel.fromJson(e)).toList();
+    } else {
+      debugPrint('❌ [API] fetchProducts failed: ${response.statusCode} → $requestUrl');
     }
-  } catch (_) {}
+  } catch (e) {
+    debugPrint('🚨 [API] fetchProducts exception: $e');
+  }
 
   return [];
 }
