@@ -228,6 +228,34 @@ class _AllProductsState extends State<AllProducts> {
                                             : Colors.transparent,
                                         width: 2,
                                       ),
+                                      boxShadow: [
+                                        // Soft ambient shadow
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.06),
+                                          blurRadius: 24,
+                                          spreadRadius: 0,
+                                          offset: const Offset(0, 10),
+                                        ),
+
+                                        // Tight contact shadow
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.04),
+                                          blurRadius: 6,
+                                          spreadRadius: 0,
+                                          offset: const Offset(0, 2),
+                                        ),
+
+                                        // Luxury purple glow when selected
+                                        if (isSelected)
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF6F0562,
+                                            ).withOpacity(0.18),
+                                            blurRadius: 18,
+                                            spreadRadius: 1,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                      ],
                                     ),
                                     child: CircleAvatar(
                                       radius: 30,
@@ -367,32 +395,35 @@ class _AllProductsState extends State<AllProducts> {
                                             child: ClipRRect(
                                               borderRadius:
                                                   BorderRadius.circular(10),
-                                              child: sub.image.isNotEmpty
-                                                  ? CachedNetworkImage(
-                                                      imageUrl: sub.image,
-                                                      fit: BoxFit.cover,
-                                                      placeholder: (_, __) =>
-                                                          const Center(
-                                                            child: SizedBox(
-                                                              width: 16,
-                                                              height: 16,
-                                                              child:
-                                                                  CircularProgressIndicator(
-                                                                    strokeWidth:
-                                                                        2,
-                                                                  ),
-                                                            ),
-                                                          ),
-                                                      errorWidget:
-                                                          (_, __, ___) =>
-                                                              const Icon(
-                                                                Icons.category,
-                                                              ),
-                                                    )
-                                                  : const Icon(
-                                                      Icons.category,
-                                                      size: 20,
-                                                    ),
+                                              child: sub.name.toLowerCase() == 'all'
+    ? Image.asset(
+        'assets/images/gladskin-all.webp',
+        fit: BoxFit.cover,
+      )
+    : sub.image.isNotEmpty
+        ? CachedNetworkImage(
+            imageUrl: sub.image,
+            fit: BoxFit.cover,
+            placeholder: (_, __) =>
+                const Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+            errorWidget: (_, __, ___) =>
+                const Icon(
+                  Icons.category,
+                  size: 20,
+                ),
+          )
+        : const Icon(
+            Icons.category,
+            size: 20,
+          ),
                                             ),
                                           ),
 

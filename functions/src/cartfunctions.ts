@@ -1201,65 +1201,211 @@ await admin
           referralRewardGivenTo:
             referrerUid,
 
-          items:
-  cartSnap.docs.map(
-    (doc) => {
+          // =====================================
+// ORDER IDENTIFIERS
+// =====================================
 
-      const item =
-        doc.data();
+orderNumber: `GS-${wooOrderId}`,
 
-      let taxRate =
-        Number(
-          item.taxRate ??
-          item.TaxRate ??
-          0
-        );
+wooStatus:
+  isOnlinePayment
+    ? "processing"
+    : "pending",
 
-      // =====================================
-      // GST FALLBACK
-      // =====================================
+wooCreatedAt:
+  admin.firestore.FieldValue.serverTimestamp(),
 
-      if (taxRate <= 0) {
+wooUpdatedAt:
+  admin.firestore.FieldValue.serverTimestamp(),
 
-        const taxClass =
-          String(
-            item.taxClass || ""
-          ).toLowerCase();
+// =====================================
+// CUSTOMER SNAPSHOT
+// =====================================
 
-        taxRate =
-          taxClass ===
-          "reduced-rate"
-            ? 5
-            : 18;
-      }
+customer: {
+  uid,
 
-      return {
+  name:
+    billing.first_name || "",
 
-        productId:
-          item.productId,
+  phone:
+    billing.phone || "",
 
-        name:
-          item.name || "",
+  email:
+    request.auth.token?.email || "",
+},
 
-        image:
-          item.image || "",
+// =====================================
+// TIMELINE
+// =====================================
 
-        quantity:
-          item.quantity || 1,
+statusHistory: [
+  {
+    status:
+      isOnlinePayment
+        ? "processing"
+        : "pending",
 
-        salePrice:
-          item.salePrice || 0,
+    at:
+      admin.firestore.FieldValue.serverTimestamp(),
+  },
+],
 
-        mrp:
-          item.mrp || 0,
+// =====================================
+// TRACKING
+// =====================================
 
-        taxClass:
-          item.taxClass || "",
+trackingNumber: null,
 
-        taxRate,
-      };
-    }
+trackingUrl: null,
+
+courierName: null,
+
+shippedAt: null,
+
+deliveredAt: null,
+
+// =====================================
+// PAYMENT
+// =====================================
+
+paymentCapturedAt:
+  isOnlinePayment
+    ? admin.firestore.FieldValue.serverTimestamp()
+    : null,
+
+// =====================================
+// REFERRAL
+// =====================================
+
+referralRewardStatus:
+  rewardAmount > 0
+    ? "pending"
+    : "none",
+
+// =====================================
+// ITEM STATS
+// =====================================
+
+itemCount:
+  cartSnap.docs.length,
+
+totalQuantity:
+  cartSnap.docs.reduce(
+    (sum, doc) =>
+      sum +
+      Number(
+        doc.data().quantity || 1
+      ),
+    0
   ),
+
+// =====================================
+// COUPON SNAPSHOT
+// =====================================
+
+coupon: {
+  id: couponId,
+  code: couponCode,
+  discount: couponDiscount,
+},
+
+items:
+  cartSnap.docs.map((doc) => {
+
+    const item = doc.data();
+
+    const qty =
+      Number(item.quantity || 1);
+
+    const mrp =
+      Number(item.mrp || 0);
+
+    const salePrice =
+      Number(item.salePrice || mrp);
+
+    let taxRate =
+      Number(
+        item.taxRate ??
+        item.TaxRate ??
+        0
+      );
+
+    if (taxRate <= 0) {
+
+      const taxClass =
+        String(
+          item.taxClass || ""
+        ).toLowerCase();
+
+      taxRate =
+        taxClass ===
+        "reduced-rate"
+          ? 5
+          : 18;
+    }
+
+    const lineSubtotal =
+      Number(
+        (salePrice * qty)
+          .toFixed(2)
+      );
+
+    const lineTax =
+      Number(
+        (
+          lineSubtotal *
+          (taxRate / 100)
+        ).toFixed(2)
+      );
+
+    const lineTotal =
+      Number(
+        (
+          lineSubtotal +
+          lineTax
+        ).toFixed(2)
+      );
+
+    return {
+
+      productId:
+        item.productId,
+
+      name:
+        item.name || "",
+
+      image:
+        item.image || "",
+
+      brand:
+        item.brand || "",
+
+      packing:
+        item.packing || "",
+
+      quantity: qty,
+
+      mrp,
+
+      salePrice,
+
+      taxStatus:
+        item.taxStatus ||
+        "taxable",
+
+      taxClass:
+        item.taxClass || "",
+
+      taxRate,
+
+      lineSubtotal,
+
+      lineTax,
+
+      lineTotal,
+    };
+  }),
 
           billing,
 

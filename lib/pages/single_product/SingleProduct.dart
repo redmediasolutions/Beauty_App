@@ -2,6 +2,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glowfit/Auth/mobilelogin.dart';
@@ -32,12 +33,33 @@ class _ProductsViewState extends State<ProductsView> {
 
   bool _isAdding = false;
   int quantity = 1;
+  bool _showBottomBar = true;
 
   @override
-  void initState() {
-    super.initState();
-    fetchProduct();
-  }
+void initState() {
+  super.initState();
+
+  fetchProduct();
+
+  _scrollController.addListener(() {
+    final direction =
+        _scrollController.position.userScrollDirection;
+
+    if (direction == ScrollDirection.reverse &&
+        _showBottomBar) {
+      setState(() {
+        _showBottomBar = false;
+      });
+    }
+
+    if (direction == ScrollDirection.forward &&
+        !_showBottomBar) {
+      setState(() {
+        _showBottomBar = true;
+      });
+    }
+  });
+}
 
   final ScrollController _scrollController = ScrollController();
 
@@ -261,22 +283,30 @@ print("================================");
           ),
 
           /// FLOATING ADD TO CART
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              top: false,
-              child: FloatingAddToCartBar(
-                p: p,
-                quantity: quantity,
-                isAdding: _isAdding,
-                onAdd: () => _addToCart(p),
-                onIncrease: () => setState(() => quantity++),
-                onDecrease: () => setState(() => quantity--),
-              ),
-            ),
-          ),
+          AnimatedPositioned(
+  duration: const Duration(
+    milliseconds: 300,
+  ),
+  curve: Curves.easeOutCubic,
+  left: 0,
+  right: 0,
+
+  bottom: _showBottomBar
+      ? MediaQuery.of(context)
+              .viewPadding
+              .bottom +
+          25 // sits above navbar
+      : -140,
+
+  child: FloatingAddToCartBar(
+    p: p,
+    quantity: quantity,
+    isAdding: _isAdding,
+    onAdd: () => _addToCart(p),
+    onIncrease: () => setState(() => quantity++),
+    onDecrease: () => setState(() => quantity--),
+  ),
+),
         ],
       ),
     );

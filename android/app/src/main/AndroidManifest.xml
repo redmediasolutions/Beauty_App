@@ -13,9 +13,9 @@
         android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="gladskin"
+        android:label="Glad Skin"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/ic_launcher">
 
             <!-- Firebase Notification Channel -->
 
