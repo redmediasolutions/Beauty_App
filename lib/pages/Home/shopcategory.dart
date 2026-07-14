@@ -51,7 +51,7 @@ class Shopcategory extends StatelessWidget {
                     image: NetworkImage(categories[index]['image']!),
                     fit: BoxFit.cover,
                     colorFilter: ColorFilter.mode(
-                      Colors.black.withOpacity(0.35), 
+                      Colors.black.withValues(alpha: 0.35), 
                       BlendMode.darken,
                     ),
                   ),
@@ -73,7 +73,7 @@ class Shopcategory extends StatelessWidget {
                       categories[index]['count']!,
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                   ],

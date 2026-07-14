@@ -345,7 +345,7 @@ if (categories.isNotEmpty) {
             ? CachedNetworkImage(
                 imageUrl: cat.image,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => const Center(
+                placeholder: (_, _) => const Center(
                   child: SizedBox(
                     width: 18,
                     height: 18,
@@ -354,7 +354,7 @@ if (categories.isNotEmpty) {
                     ),
                   ),
                 ),
-                errorWidget: (_, __, ___) =>
+                errorWidget: (_, _, _) =>
                     const Icon(Icons.category),
               )
             : const Icon(Icons.category),
@@ -433,7 +433,7 @@ if (categories.isNotEmpty) {
                                             ? [
                                                 BoxShadow(
                                                   color: Colors.black
-                                                      .withOpacity(0.05),
+                                                      .withValues(alpha: 0.05),
                                                   blurRadius: 8,
                                                   offset: const Offset(0, 3),
                                                 ),
@@ -472,7 +472,7 @@ if (categories.isNotEmpty) {
         ? CachedNetworkImage(
             imageUrl: sub.image,
             fit: BoxFit.cover,
-            placeholder: (_, __) =>
+            placeholder: (_, _) =>
                 const Center(
                   child: SizedBox(
                     width: 16,
@@ -482,7 +482,7 @@ if (categories.isNotEmpty) {
                     ),
                   ),
                 ),
-            errorWidget: (_, __, ___) =>
+            errorWidget: (_, _, _) =>
                 const Icon(
                   Icons.category,
                   size: 20,

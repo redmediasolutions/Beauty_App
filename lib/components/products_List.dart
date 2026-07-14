@@ -139,7 +139,7 @@ child: CachedNetworkImage(
       imageUrl: fallbackImage,
       fit: BoxFit.contain,
 
-      errorWidget: (_, __, ___) {
+      errorWidget: (_, _, _) {
         return Container(
           color: Colors.grey[100],
           child: const Center(

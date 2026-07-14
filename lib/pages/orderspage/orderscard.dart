@@ -53,8 +53,8 @@ class OrderCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color:
-                Colors.black.withOpacity(
-              0.03,
+                Colors.black.withValues(
+              alpha: 0.03,
             ),
             blurRadius: 12,
             offset: const Offset(0, 4),
@@ -76,8 +76,8 @@ class OrderCard extends StatelessWidget {
 
                 decoration: BoxDecoration(
                   color:
-                      primaryColor.withOpacity(
-                    0.08,
+                      primaryColor.withValues(
+                    alpha: 0.08,
                   ),
 
                   borderRadius:
@@ -140,7 +140,7 @@ class OrderCard extends StatelessWidget {
 
                 decoration: BoxDecoration(
                   color: statusColor
-                      .withOpacity(0.10),
+                      .withValues(alpha: 0.10),
 
                   borderRadius:
                       BorderRadius.circular(

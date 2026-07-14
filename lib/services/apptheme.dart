@@ -28,7 +28,7 @@ final ThemeData appTheme = ThemeData(
     error: Colors.red,
     onError: Colors.white,
     outline: outlineVariant,
-    outlineVariant: outlineVariant.withOpacity(0.2),
+    outlineVariant: outlineVariant.withValues(alpha: 0.2),
     surfaceContainerHighest: surfaceLow,
     surfaceContainerHigh: surfaceLow,
     surfaceContainer: surfaceLow,
@@ -71,21 +71,21 @@ final ThemeData appTheme = ThemeData(
   // BODY (unchanged)
   bodyLarge: TextStyle(
     fontFamily: 'Manrope',
-    color: onSurface.withOpacity(0.75),
+    color: onSurface.withValues(alpha: 0.75),
     fontSize: 16,
     height: 1.6,
   ),
 
   bodyMedium: TextStyle(
     fontFamily: 'Manrope',
-    color: onSurface.withOpacity(0.65),
+    color: onSurface.withValues(alpha: 0.65),
     fontSize: 14,
   ),
 
   // LABELS
   labelLarge: TextStyle(
     fontFamily: 'Manrope',
-    color: onSurface.withOpacity(0.5),
+    color: onSurface.withValues(alpha: 0.5),
     fontSize: 12,
     letterSpacing: 2,
     fontWeight: FontWeight.w600,
@@ -121,13 +121,13 @@ final ThemeData appTheme = ThemeData(
     filled: false,
     border: UnderlineInputBorder(
       borderSide: BorderSide(
-        color: outlineVariant.withOpacity(0.2),
+        color: outlineVariant.withValues(alpha: 0.2),
         width: 1,
       ),
     ),
     enabledBorder: UnderlineInputBorder(
       borderSide: BorderSide(
-        color: outlineVariant.withOpacity(0.2),
+        color: outlineVariant.withValues(alpha: 0.2),
       ),
     ),
     focusedBorder: UnderlineInputBorder(
@@ -138,7 +138,7 @@ final ThemeData appTheme = ThemeData(
     ),
     labelStyle: TextStyle(
       fontFamily: 'Manrope',
-      color: onSurface.withOpacity(0.6),
+      color: onSurface.withValues(alpha: 0.6),
       fontSize: 12,
       letterSpacing: 1.2,
     ),
@@ -155,7 +155,7 @@ final ThemeData appTheme = ThemeData(
 
   // ✨ APP BAR
   appBarTheme: AppBarTheme(
-    backgroundColor: surface.withOpacity(0.7),
+    backgroundColor: surface.withValues(alpha: 0.7),
     elevation: 0,
     centerTitle: false,
     titleTextStyle: TextStyle(

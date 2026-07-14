@@ -26,7 +26,7 @@ Widget build(BuildContext context) {
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.03),
+          color: Colors.black.withValues(alpha: 0.03),
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -41,7 +41,7 @@ Widget build(BuildContext context) {
           decoration: BoxDecoration(
             color: const Color(
               0xFF6F0562,
-            ).withOpacity(0.08),
+            ).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
@@ -113,7 +113,7 @@ Widget build(BuildContext context) {
               ),
               decoration: BoxDecoration(
                 color: Colors.green
-                    .withOpacity(0.10),
+                    .withValues(alpha: 0.10),
                 borderRadius:
                     BorderRadius.circular(30),
               ),

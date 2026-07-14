@@ -36,7 +36,7 @@ class FloatingNavBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(40),
                 boxShadow: [
                   BoxShadow(
-                    color: primaryColor.withOpacity(0.3),
+                    color: primaryColor.withValues(alpha: 0.3),
                     blurRadius: 20,
                   ),
                 ],
@@ -89,7 +89,7 @@ class FloatingNavBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(40),
                 boxShadow: [
                   BoxShadow(
-                    color: primaryColor.withOpacity(0.3),
+                    color: primaryColor.withValues(alpha: 0.3),
                     blurRadius: 20,
                   ),
                 ],
@@ -182,7 +182,7 @@ class FloatingNavBar extends StatelessWidget {
               return Icon(
                 icon,
                 size: size,
-                color: Colors.white.withOpacity(opacity),
+                color: Colors.white.withValues(alpha: opacity),
               );
             },
           ),

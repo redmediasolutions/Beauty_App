@@ -250,8 +250,8 @@ class _SearchProductCardState
                         decoration:
                             BoxDecoration(
                           color: Colors.black
-                              .withOpacity(
-                            0.45,
+                              .withValues(
+                            alpha: 0.45,
                           ),
 
                           borderRadius:

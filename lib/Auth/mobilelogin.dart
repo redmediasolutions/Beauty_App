@@ -419,7 +419,7 @@ void initState() {
                         Container(
                           width: 30,
                           height: 1,
-                          color: const Color(0xFFB70B68).withOpacity(0.3),
+                          color: const Color(0xFFB70B68).withValues(alpha: 0.3),
                         ),
                       ],
                     ),

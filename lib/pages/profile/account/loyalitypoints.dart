@@ -201,7 +201,7 @@ for (final doc in txSnapshot.data!.docs) {
       vertical: 8,
     ),
     decoration: BoxDecoration(
-      color: Colors.white.withOpacity(0.15),
+      color: Colors.white.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(30),
     ),
     child: Text(
@@ -228,7 +228,7 @@ for (final doc in txSnapshot.data!.docs) {
                   decoration:
                       BoxDecoration(
                     color: Colors.white
-                        .withOpacity(0.15),
+                        .withValues(alpha: 0.15),
                     borderRadius:
                         BorderRadius
                             .circular(30),
@@ -807,7 +807,7 @@ final statusColor =
         decoration: BoxDecoration(
           color: const Color(
             0xFF6F0562,
-          ).withOpacity(0.08),
+          ).withValues(alpha: 0.08),
           borderRadius:
               BorderRadius.circular(14),
         ),
@@ -893,7 +893,7 @@ final statusColor =
             decoration:
                 BoxDecoration(
               color: statusColor
-                  .withOpacity(0.10),
+                  .withValues(alpha: 0.10),
               borderRadius:
                   BorderRadius.circular(
                       30),

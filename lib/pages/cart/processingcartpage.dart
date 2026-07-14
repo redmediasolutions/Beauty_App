@@ -53,7 +53,7 @@ class _ProcessingOrderScreenState
                 decoration: BoxDecoration(
                   color: const Color(
                     0xFF6F0562,
-                  ).withOpacity(.08),
+                  ).withValues(alpha: .08),
 
                   shape: BoxShape.circle,
                 ),

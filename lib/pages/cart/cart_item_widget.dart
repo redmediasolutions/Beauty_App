@@ -112,7 +112,7 @@ final double totalSavings =
 
     if (quantity > 1)
       Text(
-        "${quantity} × ₹${salePrice.toStringAsFixed(0)}",
+        "$quantity × ₹${salePrice.toStringAsFixed(0)}",
         style: TextStyle(
           fontSize: 12,
           color: Colors.grey.shade600,
@@ -186,7 +186,7 @@ final double totalSavings =
     ),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.04),
+        color: Colors.black.withValues(alpha: 0.04),
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),
