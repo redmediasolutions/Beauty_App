@@ -3,11 +3,14 @@ import 'package:collection/collection.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glowfit/models/coupon_model.dart';
+import 'package:glowfit/models/freegit.dart';
 import 'package:glowfit/pages/cart/address_section.dart';
 import 'package:glowfit/pages/cart/bill_summary.dart';
 import 'package:glowfit/pages/cart/cart_item_widget.dart';
+import 'package:glowfit/pages/cart/cart_progress_update.dart';
 import 'package:glowfit/pages/cart/cart_repository.dart';
 import 'package:glowfit/pages/cart/checkout_button_widget.dart';
+import 'package:glowfit/pages/cart/freegiftbanner.dart';
 import 'package:glowfit/pages/cart/offer_card_widget.dart';
 import 'package:glowfit/pages/cart/payment_tilewidget.dart';
 import 'package:glowfit/pages/cart/savingscard.dart';
@@ -46,6 +49,19 @@ class _CartPageState extends State<CartPage> {
   double _couponDiscountAmount = 0;
   double _finalCheckoutTotal = 0;
   double _adjustedTaxAmount = 0;
+  FreeGiftModel? _freeGiftSettings;
+
+bool _loadingFreeGift = true;
+
+bool _giftAdded = false;
+
+double _codThreshold = 499;
+double _codChargeBelowThreshold = 16;
+double _codChargeAboveThreshold = 0;
+
+double _shippingThreshold = 499;
+double _shippingChargeBelowThreshold = 49;
+double _shippingChargeAboveThreshold = 0;
 
   @override
   void initState() {
@@ -54,6 +70,8 @@ class _CartPageState extends State<CartPage> {
     _setupRazorpay();
     _loadRates();
     _loadAvailableCoupons();
+    _loadFreeGiftSettings();
+    _loadCheckoutSettings();   // Load COD settings
   }
 
   @override
@@ -62,6 +80,104 @@ class _CartPageState extends State<CartPage> {
     _scrollController.dispose();
     super.dispose();
   }
+
+  Future<void> _loadFreeGiftSettings() async {
+  try {
+    print("==================================");
+    print("🎁 LOADING FREE GIFT SETTINGS");
+    print("==================================");
+
+    final result =
+        await _firestoreService
+            .getFreeGiftSettings();
+
+    if (result == null) {
+      print("❌ Firestore returned NULL");
+    } else {
+      print("✅ Campaign: ${result.campaignName}");
+      print("✅ Enabled: ${result.enabled}");
+      print("✅ Start: ${result.startAt}");
+      print("✅ End: ${result.endAt}");
+      print("✅ Tier Count: ${result.tiers.length}");
+
+      for (final tier in result.tiers) {
+        print("--------------------------------");
+        print("Minimum Order: ₹${tier.minimumOrder}");
+        print("Product ID: ${tier.productId}");
+        print("Product Name: ${tier.productName}");
+        print("Quantity: ${tier.quantity}");
+        print("Image: ${tier.image}");
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _freeGiftSettings = result;
+      _loadingFreeGift = false;
+    });
+
+    print("✅ State Updated");
+    print("Loading = $_loadingFreeGift");
+    print(
+      "Settings Loaded = ${_freeGiftSettings != null}",
+    );
+
+    print("==================================");
+  } catch (e, stack) {
+    print("==================================");
+    print("❌ FREE GIFT LOAD ERROR");
+    print(e);
+    print(stack);
+    print("==================================");
+
+    if (mounted) {
+      setState(() {
+        _loadingFreeGift = false;
+      });
+    }
+  }
+}
+
+Future<void> _loadCheckoutSettings() async {
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('app_settings')
+        .doc('checkout')
+        .get();
+
+    if (!doc.exists || !mounted) return;
+
+    final data = doc.data()!;
+
+    setState(() {
+      _codThreshold =
+          (data['cod_threshold'] as num?)?.toDouble() ?? 999;
+
+      _codChargeBelowThreshold =
+          (data['cod_charge_below_threshold'] as num?)?.toDouble() ?? 49;
+
+      _codChargeAboveThreshold =
+          (data['cod_charge_above_threshold'] as num?)?.toDouble() ?? 29;
+
+          _shippingThreshold =
+    (data['shipping_threshold'] as num?)?.toDouble() ?? 499;
+
+_shippingChargeBelowThreshold =
+    (data['shipping_charge_below_threshold'] as num?)?.toDouble() ?? 49;
+
+_shippingChargeAboveThreshold =
+    (data['shipping_charge_above_threshold'] as num?)?.toDouble() ?? 0;
+    });
+
+    debugPrint("Checkout Settings Loaded");
+    debugPrint("Threshold: $_codThreshold");
+    debugPrint("Below: $_codChargeBelowThreshold");
+    debugPrint("Above: $_codChargeAboveThreshold");
+  } catch (e) {
+    debugPrint("Failed to load checkout settings: $e");
+  }
+}
 
   Future<void> _openAddAddressSheet() async {
     final nameController = TextEditingController();
@@ -573,7 +689,11 @@ class _CartPageState extends State<CartPage> {
           couponDiscountAmount.toStringAsFixed(2),
         );
       }
-
+debugPrint("========== COUPON DEBUG ==========");
+debugPrint("selectedCoupon=${selectedCoupon?.code}");
+debugPrint("discount=${selectedCoupon?.discount}");
+debugPrint("couponDiscountAmount=$couponDiscountAmount");
+debugPrint("=================================");
       // =========================================
       // CREATE ORDER
       // =========================================
@@ -585,7 +705,9 @@ class _CartPageState extends State<CartPage> {
         couponDiscount: couponDiscountAmount,
       );
 
-      final payable = (result['finalPayable'] ?? 0).toDouble();
+      final payable = (_finalCheckoutTotal - _couponDiscountAmount)
+    .clamp(0, double.infinity)
+    .toDouble();
       _razorpayOrderId = result['razorpayOrderId'];
       _razorpayKey = result['razorpayKey'];
 
@@ -687,6 +809,8 @@ class _CartPageState extends State<CartPage> {
     if (user == null) {
       return const Scaffold(body: Center(child: Text("Please login")));
     }
+
+    
 
     return Scaffold(
       backgroundColor: const Color(0xFFFCF9F9),
@@ -827,7 +951,27 @@ GST Rate: ${data['taxRate']}
             _totals = _repository.calculateTotals(docs: docs, rates: _rates);
 
             final double subtotal = _totals['subtotal'] ?? 0;
-            final double shipping = _totals['shipping'] ?? 0;
+            final eligibleGift =
+    _freeGiftSettings == null
+        ? null
+        : _firestoreService
+            .getEligibleGift(
+              subtotal: subtotal,
+              settings: _freeGiftSettings!,
+            );
+
+final nextGift =
+    _freeGiftSettings == null
+        ? null
+        : _firestoreService
+            .getNextGiftTier(
+              subtotal: subtotal,
+              settings: _freeGiftSettings!,
+            );
+            final double shipping =
+    subtotal >= _shippingThreshold
+        ? _shippingChargeAboveThreshold
+        : _shippingChargeBelowThreshold;
 
             // ========================================
             // COUPON DISCOUNT
@@ -918,9 +1062,9 @@ _adjustedTaxAmount =
             // ========================================
             final double codChargesAmount =
     _selectedPayment == "cod"
-        ? (subtotal >= 999
-            ? 29.0
-            : 49.0)
+        ? (subtotal >= _codThreshold
+            ? _codChargeAboveThreshold
+            : _codChargeBelowThreshold)
         : 0.0;
 
         // ========================================
@@ -1071,8 +1215,64 @@ SizedBox(
   ),
 ),
 
-const SizedBox(height: 30),
+const SizedBox(height: 24),
 
+
+
+if (_freeGiftSettings != null &&
+    (eligibleGift != null || nextGift != null))
+  FreeGiftBanner(
+    cartTotal: subtotal,
+    unlockAmount:
+        eligibleGift?.minimumOrder ??
+        nextGift!.minimumOrder,
+    giftName:
+        eligibleGift?.productName ??
+        nextGift!.productName,
+    giftImage:
+        eligibleGift?.image ??
+        nextGift!.image,
+    isUnlocked: eligibleGift != null,
+    giftAdded: _giftAdded,
+    onAddGift: eligibleGift == null
+        ? null
+        : () async {
+            await _repository.addFreeGift(
+              productId: eligibleGift.productId,
+              productName:
+                  eligibleGift.productName,
+              image: eligibleGift.image,
+              quantity:
+                  eligibleGift.quantity,
+            );
+
+            setState(() {
+              _giftAdded = true;
+            });
+          },
+  ),
+
+    buildChargeProgressCard(
+  title: 'Free Shipping',
+  icon: Icons.local_shipping_outlined,
+  subtotal: subtotal,
+  threshold: _shippingThreshold,
+  chargeBelowThreshold: _shippingChargeBelowThreshold,
+  benefitLabel: 'free shipping',
+),
+if (_selectedPayment == 'cod') ...[
+  const SizedBox(height: 12),
+  buildChargeProgressCard(
+    title: 'Cash on Delivery',
+    icon: Icons.payments_outlined,
+    subtotal: subtotal,
+    threshold: _codThreshold,
+    chargeBelowThreshold: _codChargeBelowThreshold,
+    benefitLabel: 'free COD',
+  ),
+],
+
+const SizedBox(height: 30),
                   /// OFFERS & POINTS SECTION
                   Row(
                     children: [
@@ -1149,6 +1349,7 @@ const SizedBox(height: 30),
                         ),
                       ),
                       const SizedBox(height: 12),
+                      
                       PaymentTileWidget(
                         value: "online",
                         title: "Pay Now",
@@ -1162,16 +1363,30 @@ const SizedBox(height: 30),
                       ),
                       const SizedBox(height: 10),
                       PaymentTileWidget(
-                        value: "cod",
-                        title: "Cash on Delivery",
-                        icon: Icons.money,
-                        selected: _selectedPayment == "cod",
-                        onTap: () {
-                          setState(() {
-                            _selectedPayment = "cod";
-                          });
-                        },
-                      ),
+
+  value: "cod",
+
+  title: "Cash on Delivery",
+
+  subtitle: subtotal >= _codThreshold
+    ? "Estimated COD charge ₹${_codChargeAboveThreshold.toStringAsFixed(0)}"
+    : "Estimated COD charge ₹${_codChargeBelowThreshold.toStringAsFixed(0)}",
+
+  icon: Icons.money,
+
+  selected: _selectedPayment == "cod",
+
+  onTap: () {
+
+    setState(() {
+
+      _selectedPayment = "cod";
+
+    });
+
+  },
+
+),
                     ],
                   ),
                   const SizedBox(height: 30),
@@ -1183,6 +1398,10 @@ const SizedBox(height: 30),
                     ),
                     const SizedBox(height: 24),
                   ],
+
+                
+                  const SizedBox(height: 30),
+
                   /// BILL SUMMARY
                   BillSummaryWidget(
                     totalMrp: totalMrp,

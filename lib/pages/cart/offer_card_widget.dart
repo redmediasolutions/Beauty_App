@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:glowfit/models/coupon_model.dart';
+import 'package:collection/collection.dart';
 
 class OfferCardWidget extends StatelessWidget {
   final IconData icon;
@@ -246,105 +247,396 @@ class OfferCardWidget extends StatelessWidget {
   /// COUPON BOTTOM SHEET WITH AUTOSUGGEST HIGHLIGHT
   /// COUPON BOTTOM SHEET (Handles filtering out Influencer coupons)
   void _showCouponsSheet(BuildContext context) {
-    // Filter out influencer coupons entirely from the user-selectable list
-    final List<CouponModel> displayCoupons = coupons
-        .where((coupon) => !coupon.isInfluencerCoupon)
-        .toList();
 
-    CouponModel? suggestedCoupon;
-    List<CouponModel> otherCoupons = [];
+  final couponController = TextEditingController();
 
-    if (displayCoupons.isNotEmpty) {
-      // Find the coupon flagged explicitly with autosuggest: true within displayable coupons
-      final autosuggestIndex = displayCoupons.indexWhere((c) => c.autoSuggest);
+  final List<CouponModel> displayCoupons = coupons
 
-      if (autosuggestIndex != -1) {
-        suggestedCoupon = displayCoupons[autosuggestIndex];
-        otherCoupons = List.from(displayCoupons)..removeAt(autosuggestIndex);
-      } else {
-        // Fallback to highest discount if no explicit autosuggest flag exists
-        suggestedCoupon = displayCoupons.first;
-        otherCoupons = displayCoupons.length > 1 ? displayCoupons.sublist(1) : [];
-      }
+      .where((coupon) => !coupon.isInfluencerCoupon)
+
+      .toList();
+
+  CouponModel? suggestedCoupon;
+
+  List<CouponModel> otherCoupons = [];
+
+  if (displayCoupons.isNotEmpty) {
+
+    final autosuggestIndex = displayCoupons.indexWhere(
+
+      (c) => c.autoSuggest,
+
+    );
+
+    if (autosuggestIndex != -1) {
+
+      suggestedCoupon = displayCoupons[autosuggestIndex];
+
+      otherCoupons = List.from(displayCoupons)
+
+        ..removeAt(autosuggestIndex);
+
+    } else {
+
+      suggestedCoupon = displayCoupons.first;
+
+      otherCoupons = displayCoupons.length > 1
+
+          ? displayCoupons.sublist(1)
+
+          : [];
+
     }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(28),
-        ),
+  }
+
+  showModalBottomSheet(
+
+    context: context,
+
+    isScrollControlled: true,
+
+    backgroundColor: Colors.white,
+
+    shape: const RoundedRectangleBorder(
+
+      borderRadius: BorderRadius.vertical(
+
+        top: Radius.circular(28),
+
       ),
-      builder: (context) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.80,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+
+    ),
+
+    builder: (context) {
+
+      return SizedBox(
+
+        height: MediaQuery.of(context).size.height * 0.80,
+
+        child: Column(
+
+          crossAxisAlignment:
+
+              CrossAxisAlignment.start,
+
+          children: [
+
+            Center(
+
+              child: Container(
+
+                margin: const EdgeInsets.only(
+
+                  top: 12,
+
                 ),
+
+                width: 50,
+
+                height: 5,
+
+                decoration: BoxDecoration(
+
+                  color: Colors.grey[300],
+
+                  borderRadius:
+
+                      BorderRadius.circular(20),
+
+                ),
+
               ),
-              Padding(
-                padding: const EdgeInsets.only(left: 20, right: 10, top: 10, bottom: 5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Available Coupons",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-              ),
-              
-              /// EMPTY STATE CHECK (Using the filtered displayCoupons list)
-              if (displayCoupons.isEmpty)
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Center(
-                        child: Icon(
-                          Icons.local_offer_outlined,
-                          size: 80,
-                          color: Colors.grey[300],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        "No Coupons Available",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "Please check again later",
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
+
+            ),
+
+            Padding(
+
+              padding:
+
+                  const EdgeInsets.only(
+
+                    left: 20,
+
+                    right: 10,
+
+                    top: 10,
+
+                    bottom: 5,
+
                   ),
-                ),
+
+              child: Row(
+
+                mainAxisAlignment:
+
+                    MainAxisAlignment
+
+                        .spaceBetween,
+
+                children: [
+
+                  const Text(
+
+                    "Available Coupons",
+
+                    style: TextStyle(
+
+                      fontSize: 20,
+
+                      fontWeight:
+
+                          FontWeight.bold,
+
+                    ),
+
+                  ),
+
+                  IconButton(
+
+                    onPressed: () =>
+
+                        Navigator.pop(
+
+                          context,
+
+                        ),
+
+                    icon: const Icon(
+
+                      Icons.close,
+
+                    ),
+
+                  ),
+
+                ],
+
+              ),
+
+            ),
+
+            /// MANUAL COUPON ENTRY
+
+            Padding(
+
+              padding:
+
+                  const EdgeInsets.symmetric(
+
+                    horizontal: 20,
+
+                  ),
+
+              child: Row(
+
+                children: [
+
+                  Expanded(
+
+                    child: TextField(
+
+                      controller:
+
+                          couponController,
+
+                      textCapitalization:
+
+                          TextCapitalization
+
+                              .characters,
+
+                      decoration:
+
+                          InputDecoration(
+
+                            hintText:
+
+                                "Enter coupon code",
+
+                            filled: true,
+
+                            fillColor:
+
+                                const Color(
+
+                                  0xFFF6F3F4,
+
+                                ),
+
+                            border:
+
+                                OutlineInputBorder(
+
+                                  borderRadius:
+
+                                      BorderRadius.circular(
+
+                                        14,
+
+                                      ),
+
+                                  borderSide:
+
+                                      BorderSide.none,
+
+                                ),
+
+                          ),
+
+                    ),
+
+                  ),
+
+                  const SizedBox(width: 10),
+
+                  SizedBox(
+
+                    height: 54,
+
+                    child: ElevatedButton(
+
+                      onPressed: () {
+
+                        final enteredCode =
+
+                            couponController.text
+
+                                .trim()
+
+                                .toUpperCase();
+
+                        if (enteredCode
+
+                            .isEmpty) {
+
+                          return;
+
+                        }
+
+                        final coupon =
+
+                            coupons
+
+                                .firstWhereOrNull(
+
+                                  (
+
+                                    c,
+
+                                  ) =>
+
+                                      c.code
+
+                                          .toUpperCase() ==
+
+                                      enteredCode,
+
+                                );
+
+                        if (coupon ==
+
+                            null) {
+
+                          ScaffoldMessenger.of(
+
+                            context,
+
+                          ).showSnackBar(
+
+                            const SnackBar(
+
+                              content: Text(
+
+                                "Invalid coupon code",
+
+                              ),
+
+                            ),
+
+                          );
+
+                          return;
+
+                        }
+
+                        Navigator.pop(
+
+                          context,
+
+                        );
+
+                        if (onCouponSelected !=
+
+                            null) {
+
+                          onCouponSelected!(
+
+                            coupon,
+
+                          );
+
+                        }
+
+                      },
+
+                      style:
+
+                          ElevatedButton.styleFrom(
+
+                            backgroundColor:
+
+                                const Color(
+
+                                  0xFF6F0562,
+
+                                ),
+
+                            shape:
+
+                                RoundedRectangleBorder(
+
+                                  borderRadius:
+
+                                      BorderRadius.circular(
+
+                                        14,
+
+                                      ),
+
+                                ),
+
+                          ),
+
+                      child: const Text(
+
+                        "Apply",
+
+                        style: TextStyle(
+
+                          color:
+
+                              Colors.white,
+
+                          fontWeight:
+
+                              FontWeight.w600,
+
+                        ),
+
+                      ),
+
+                    ),
+
+                  ),
+
+                ],
+
+              ),
+
+            ),
+
+            const SizedBox(height: 20),
                 
               /// LIST DISPLAY SLOT
               if (displayCoupons.isNotEmpty)

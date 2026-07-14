@@ -15,10 +15,44 @@ import axios from "axios";
 // 🔐 CENTRAL RATE CONFIG
 // =======================================================
 
-const FREE_SHIPPING_THRESHOLD = 499;
-const SHIPPING_BELOW_THRESHOLD = 49;
-const SHIPPING_ABOVE_THRESHOLD = 0;
+interface CheckoutSettings {
+  shippingThreshold: number;
+  shippingChargeBelowThreshold: number;
+  shippingChargeAboveThreshold: number;
+  codThreshold: number;
+  codChargeBelowThreshold: number;
+  codChargeAboveThreshold: number;
+}
 
+async function getCheckoutSettings(): Promise<CheckoutSettings> {
+  const snap = await admin
+    .firestore()
+    .collection("app_settings")
+    .doc("checkout")
+    .get();
+
+  const data = snap.data() ?? {};
+
+  return {
+    shippingThreshold:
+      Number(data.shipping_threshold ?? 499),
+
+    shippingChargeBelowThreshold:
+      Number(data.shipping_charge_below_threshold ?? 49),
+
+    shippingChargeAboveThreshold:
+      Number(data.shipping_charge_above_threshold ?? 0),
+
+    codThreshold:
+      Number(data.cod_threshold ?? 999),
+
+    codChargeBelowThreshold:
+      Number(data.cod_charge_below_threshold ?? 49),
+
+    codChargeAboveThreshold:
+      Number(data.cod_charge_above_threshold ?? 29),
+  };
+}
 // =======================================================
 // 🔐 CALCULATION LOGIC
 // =======================================================
@@ -37,6 +71,8 @@ async function calculateCartTotals({
 
   const to2 = (value: number) =>
     Number(value.toFixed(2));
+
+  const settings = await getCheckoutSettings();
 
   const cartSnap = await admin
     .firestore()
@@ -131,10 +167,10 @@ async function calculateCartTotals({
   // SAME AS CART PAGE
   // =====================================
 
-  const shipping =
-    subtotal >= 499
-      ? 0
-      : 49;
+const shipping =
+  subtotal >= settings.shippingThreshold
+    ? settings.shippingChargeAboveThreshold
+    : settings.shippingChargeBelowThreshold;
 
   // =====================================
   // COUPON
@@ -196,14 +232,14 @@ const discountedSubtotal =
   // SAME AS CART PAGE
   // =====================================
 
-  const codCharge =
-    paymentMethod === "cod"
-      ? (
-          discountedSubtotal >= 999
-            ? 29
-            : 49
-        )
-      : 0;
+const codCharge =
+  paymentMethod === "cod"
+    ? (
+        discountedSubtotal >= settings.codThreshold
+          ? settings.codChargeAboveThreshold
+          : settings.codChargeBelowThreshold
+      )
+    : 0;
 
   // =====================================
   // TOTALS
@@ -325,25 +361,27 @@ export const getCartRates = onCall(
 
   async (request) => {
 
-    return {
+    const settings = await getCheckoutSettings();
 
-      freeShippingThreshold:
+return {
+  freeShippingThreshold:
+    settings.shippingThreshold,
 
-        FREE_SHIPPING_THRESHOLD,
+  shippingBelowThreshold:
+    settings.shippingChargeBelowThreshold,
 
-      shippingBelowThreshold:
+  shippingAboveThreshold:
+    settings.shippingChargeAboveThreshold,
 
-        SHIPPING_BELOW_THRESHOLD,
+  codThreshold:
+    settings.codThreshold,
 
-      shippingAboveThreshold:
+  codChargeBelowThreshold:
+    settings.codChargeBelowThreshold,
 
-        SHIPPING_ABOVE_THRESHOLD,
-
-      codChargeBelow500: 49,
-
-      codChargeAbove500: 29,
-
-    };
+  codChargeAboveThreshold:
+    settings.codChargeAboveThreshold,
+};
 
   }
 
@@ -581,6 +619,24 @@ export const createSecureOrder = onCall(
       paymentMethod === "online" &&
       finalPayable > 0
     ) {
+
+       console.log("===== RAZORPAY TOTALS =====");
+
+  console.log("subtotal:", subtotal);
+
+  console.log("couponDiscount:", couponDiscount);
+
+  console.log("tax:", tax);
+
+  console.log("shipping:", shipping);
+
+  console.log("walletUsed:", walletUsed);
+
+  console.log("grossTotal:", grossTotal);
+
+  console.log("finalPayable:", finalPayable);
+
+  console.log("===========================");
 
       const razorpay =
         new Razorpay({
@@ -1103,6 +1159,15 @@ await admin
         );
       }
 
+      if (!request.auth) {
+  throw new Error("Unauthenticated");
+}
+
+const uid = request.auth.uid;
+
+const userEmail =
+  (request.auth.token as any)?.email || "";
+
       // ===============================================
       // 🧹 CLEAR CART
       // ===============================================
@@ -1213,10 +1278,10 @@ wooStatus:
     : "pending",
 
 wooCreatedAt:
-  admin.firestore.FieldValue.serverTimestamp(),
+ admin.firestore.Timestamp.now(),
 
 wooUpdatedAt:
-  admin.firestore.FieldValue.serverTimestamp(),
+  admin.firestore.Timestamp.now(),
 
 // =====================================
 // CUSTOMER SNAPSHOT
@@ -1231,8 +1296,7 @@ customer: {
   phone:
     billing.phone || "",
 
-  email:
-    request.auth.token?.email || "",
+  email: userEmail,
 },
 
 // =====================================
@@ -1246,8 +1310,7 @@ statusHistory: [
         ? "processing"
         : "pending",
 
-    at:
-      admin.firestore.FieldValue.serverTimestamp(),
+    at: admin.firestore.Timestamp.now(),
   },
 ],
 
@@ -1271,7 +1334,7 @@ deliveredAt: null,
 
 paymentCapturedAt:
   isOnlinePayment
-    ? admin.firestore.FieldValue.serverTimestamp()
+    ? admin.firestore.Timestamp.now()
     : null,
 
 // =====================================

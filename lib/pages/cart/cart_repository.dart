@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
 class CartRepository {
   final FirebaseFirestore firestore =
@@ -34,26 +35,39 @@ class CartRepository {
   /// CREATE ORDER
   /// ======================================================
 
-  Future<Map<String, dynamic>> createSecureOrder({
-    required String paymentMethod,
-    required bool useWallet,
-    String? couponId,
-
+Future<Map<String, dynamic>> createSecureOrder({
+  required String paymentMethod,
+  required bool useWallet,
+  String? couponId,
   String? couponCode,
-
   double couponDiscount = 0,
-  }) async {
-    final result = await functions
-        .httpsCallable('createSecureOrder')
-        .call({
-      'paymentMethod': paymentMethod,
-      'useWallet': useWallet,
-    });
+}) async {
 
-    return Map<String, dynamic>.from(
-      result.data,
-    );
-  }
+  debugPrint("===== CREATE ORDER REQUEST =====");
+  debugPrint("couponId=$couponId");
+  debugPrint("couponCode=$couponCode");
+  debugPrint("couponDiscount=$couponDiscount");
+  debugPrint("===============================");
+
+  final result = await functions
+      .httpsCallable('createSecureOrder')
+      .call({
+
+    'paymentMethod': paymentMethod,
+
+    'useWallet': useWallet,
+
+    'couponId': couponId,
+
+    'couponCode': couponCode,
+
+    'couponDiscount': couponDiscount,
+  });
+
+  return Map<String, dynamic>.from(
+    result.data,
+  );
+}
 
   /// ======================================================
   /// FINALIZE ORDER
@@ -210,5 +224,79 @@ Future<Map<String, dynamic>> finalizeOrder({
       shipping.toStringAsFixed(2),
     ),
   };
+}
+
+Future<void> addFreeGift({
+
+  required int productId,
+
+  required String productName,
+
+  required String image,
+
+  int quantity = 1,
+
+}) async {
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+
+    throw Exception("User not logged in");
+
+  }
+
+  final cartRef = FirebaseFirestore.instance
+
+      .collection('carts')
+
+      .doc(user.uid)
+
+      .collection('items');
+
+  final existing = await cartRef
+
+      .where('productId', isEqualTo: productId)
+
+      .limit(1)
+
+      .get();
+
+  if (existing.docs.isNotEmpty) {
+
+    return;
+
+  }
+
+  await cartRef.add({
+
+    'productId': productId,
+
+    'name': productName,
+
+    'image': image,
+
+    'quantity': quantity,
+
+    // Gift flags
+
+    'isFreeGift': true,
+
+    'freeGift': true,
+
+    // Pricing
+
+    'mrp': 0,
+
+    'salePrice': 0,
+
+    'taxRate': 0,
+
+    'createdAt': FieldValue.serverTimestamp(),
+
+  });
+
+  print("🎁 Free gift added to cart");
+
 }
 }

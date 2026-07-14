@@ -510,19 +510,20 @@ void initState() {
           fontWeight: FontWeight.w500,
         ),
         decoration: InputDecoration(
-          prefixIcon: const Padding(
-            padding: EdgeInsets.only(left: 12, right: 8),
-            child: Center(
-              widthFactor: 1,
-              child: Text(
-                "+91",
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
+          prefix: Padding(
+  padding: const EdgeInsets.only(
+    left: 10,
+    right: 12,
+  ),
+  child: Text(
+    "+91",
+    style: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w600,
+      color: Color(0xFF2D2424),
+    ),
+  ),
+),
           prefixIconConstraints: const BoxConstraints(
             minWidth: 60,
           ),
@@ -730,7 +731,7 @@ void initState() {
                 child: Column(
                   children: const [
                     Text(
-                      "made with in Mangalore",
+                      "made with ❤️ in Mangalore",
                       style: TextStyle(
                         fontSize: 11,
                         letterSpacing: 1,

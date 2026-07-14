@@ -25,6 +25,7 @@ class _HomeCategoriesSectionState extends State<HomeCategoriesSection> {
   Future<void> _loadCategories() async {
     try {
       final raw = RemoteConfigService.getProductCategories();
+
       final ids = raw
           .split(',')
           .map((e) => int.tryParse(e.trim()))
@@ -35,15 +36,8 @@ class _HomeCategoriesSectionState extends State<HomeCategoriesSection> {
       final result = await APIService.fetchCategoriesByIds(ids);
 
       setState(() {
-        _categories = [
-          CategoryModel(
-            id: 49,
-            name: "All",
-            image: "assets/images/gladskin-all.webp",
-            parent: 0,
-          ),
-          ...result,
-        ];
+        // Hide "All" category (ID 49)
+        _categories = result.where((category) => category.id != 49).toList();
       });
     } catch (e) {
       debugPrint("❌ Home category error: $e");
@@ -52,7 +46,9 @@ class _HomeCategoriesSectionState extends State<HomeCategoriesSection> {
 
   @override
   Widget build(BuildContext context) {
-    if (_categories.isEmpty) return const SizedBox.shrink();
+    if (_categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -94,9 +90,9 @@ class _HomeCategoriesSectionState extends State<HomeCategoriesSection> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           SizedBox(
-            height: 95,
+            height: 200,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -105,68 +101,67 @@ class _HomeCategoriesSectionState extends State<HomeCategoriesSection> {
                 final cat = _categories[index];
 
                 return GestureDetector(
-                  onTap: () => context.push('/AllProducts'),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 18),
+  onTap: () {
+    context.push(
+      '/AllProducts',
+      extra: cat,
+    );
+  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 16),
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(2),
+                          width: 100,
+                          height: 160,
                           decoration: BoxDecoration(
-                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            shape: BoxShape.rectangle,
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 24,
-                                spreadRadius: 0,
-                                offset: const Offset(0, 10),
-                              ),
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 6,
-                                spreadRadius: 0,
-                                offset: const Offset(0, 2),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
                               ),
                             ],
                           ),
-                          child: CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Colors.grey.shade100,
-                            child: ClipOval(
-                              child: cat.image.startsWith('assets/')
-                                  ? Image.asset(
-                                      cat.image,
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : cat.image.isNotEmpty
-                                  ? CachedNetworkImage(
-                                      imageUrl: cat.image,
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                      placeholder: (ctx, url) => const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: cat.image.startsWith('assets/')
+                                ? Image.asset(
+                                    cat.image,
+                                    fit: BoxFit.contain,
+                                  )
+                                : cat.image.isNotEmpty
+                                    ? CachedNetworkImage(
+                                        imageUrl: cat.image,
+                                        fit: BoxFit.cover,
+                                        placeholder: (ctx, url) => const Center(
+                                          child: SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      errorWidget: (ctx, url, err) =>
-                                          const Icon(Icons.category),
-                                    )
-                                  : const Icon(Icons.category),
-                            ),
+                                        errorWidget: (ctx, url, err) =>
+                                            const Icon(Icons.category),
+                                      )
+                                    : const Icon(Icons.category),
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 10),
                         Text(
                           cat.name,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
-                            fontSize: 12,
+                            fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: Colors.black,
+                            color: Colors.black87,
                           ),
                         ),
                       ],

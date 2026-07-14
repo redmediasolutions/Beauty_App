@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:glowfit/models/categorymodel.dart';
 import 'package:glowfit/pages/cart/processingcartpage.dart';
 import 'package:glowfit/pages/orderspage/orderdetails.dart';
 import 'package:glowfit/pages/orderspage/orderfailed.dart';
@@ -185,10 +186,57 @@ GoRoute(
           ),
 
           /// 🛍 ALL PRODUCTS
-          GoRoute(
-            path: '/AllProducts',
-            builder: (context, state) => const AllProducts(),
-          ),
+         GoRoute(
+  path: '/AllProducts',
+  builder: (context, state) {
+    CategoryModel? category;
+
+    // 1. From extra
+    if (state.extra is CategoryModel) {
+      category = state.extra as CategoryModel;
+    }
+
+    // 2. From query parameter
+    final categoryId = int.tryParse(
+      state.uri.queryParameters['category'] ?? '',
+    );
+
+    if (category == null && categoryId != null) {
+      category = CategoryModel(
+        id: categoryId,
+        name: '',
+        image: '',
+        parent: 0,
+      );
+    }
+
+    return AllProducts(
+      initialCategory: category,
+    );
+  },
+),
+
+GoRoute(
+  path: '/AllProducts/:categoryId',
+  builder: (context, state) {
+    final categoryId = int.tryParse(
+      state.pathParameters['categoryId'] ?? '',
+    );
+
+    return AllProducts(
+      initialCategory: categoryId == null
+          ? null
+          : CategoryModel(
+              id: categoryId,
+              name: '',
+              image: '',
+              parent: 0,
+            ),
+    );
+  },
+),
+
+
 
           /// 🔍 SEARCH
           GoRoute(

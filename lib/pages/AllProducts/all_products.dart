@@ -11,10 +11,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class AllProducts extends StatefulWidget {
-  const AllProducts({super.key});
+
+  final CategoryModel? initialCategory;
+
+  const AllProducts({
+
+    super.key,
+
+    this.initialCategory,
+
+  });
 
   @override
-  State<AllProducts> createState() => _AllProductsState();
+
+  State<AllProducts> createState() =>
+
+      _AllProductsState();
+
 }
 
 class _AllProductsState extends State<AllProducts> {
@@ -31,22 +44,95 @@ class _AllProductsState extends State<AllProducts> {
   int _selectedSubCategoryId = 49;
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    _selectedCategoryId = 49; // ✅ IMPORTANT
+  final initialCategory =
+      widget.initialCategory;
 
-    loadCategoriesFromRemote();
+  if (initialCategory != null) {
+    _selectedCategoryId =
+        initialCategory.id;
 
-    _loadProducts();
-
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >=
-          _scrollController.position.maxScrollExtent - 200) {
-        _loadProducts();
-      }
-    });
+    _selectedSubCategoryId =
+        initialCategory.id;
+  } else {
+    _selectedCategoryId = 49;
+    _selectedSubCategoryId = 49;
   }
+
+  loadCategoriesFromRemote();
+
+  _loadProducts();
+
+  _scrollController.addListener(() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadProducts();
+    }
+  });
+}
+
+Future<void> _applyInitialCategory() async {
+  final initial = widget.initialCategory;
+
+  if (initial == null) {
+    _selectedCategoryId = 49;
+    _selectedSubCategoryId = 49;
+    return;
+  }
+
+  // Check if selected category is one of the top categories
+  final mainIndex = categories.indexWhere(
+    (e) => e.id == initial.id,
+  );
+
+  if (mainIndex >= 0) {
+    _selectedCategoryIndex = mainIndex;
+    _selectedCategoryId = initial.id;
+    _selectedSubCategoryId = initial.id;
+
+    await loadSubCategories(initial.id);
+    return;
+  }
+
+  // Search inside all category trees
+  for (final category in categories) {
+    final children =
+        await APIService.fetchSubCategories(
+      category.id,
+    );
+
+    final sub = children.firstWhere(
+      (e) => e.id == initial.id,
+      orElse: () => CategoryModel(
+        id: -1,
+        name: '',
+        image: '',
+        parent: 0,
+      ),
+    );
+
+    if (sub.id != -1) {
+      _selectedCategoryIndex =
+          categories.indexWhere(
+        (e) => e.id == category.id,
+      );
+
+      _selectedCategoryId =
+          category.id;
+
+      await loadSubCategories(
+        category.id,
+      );
+
+      _selectedSubCategoryId =
+          initial.id;
+
+      return;
+    }
+  }
+}
 
   Future<void> loadCategoriesFromRemote() async {
     try {
@@ -76,17 +162,13 @@ class _AllProductsState extends State<AllProducts> {
       });
 
       // Load subcategories for first category
-      if (categories.isNotEmpty) {
-        setState(() {
-          _selectedCategoryIndex = 0;
+if (categories.isNotEmpty) {
+  await _applyInitialCategory();
 
-          _selectedCategoryId = 49;
-
-          _selectedSubCategoryId = 49;
-
-          subCategories = []; // hide sidebar
-        });
-      }
+  await _loadProducts(
+    reset: true,
+  );
+}
     } catch (e) {
       debugPrint("❌ Remote category error: $e");
     }
@@ -202,7 +284,7 @@ class _AllProductsState extends State<AllProducts> {
                     const SizedBox(height: 8),
                     //category list
                     SizedBox(
-                      height: 100,
+                      height: 150,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
@@ -219,79 +301,65 @@ class _AllProductsState extends State<AllProducts> {
                                 children: [
                                   /// 🔥 CATEGORY IMAGE
                                   Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? const Color(0xFF6F0562)
-                                            : Colors.transparent,
-                                        width: 2,
-                                      ),
-                                      boxShadow: [
-                                        // Soft ambient shadow
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
-                                          blurRadius: 24,
-                                          spreadRadius: 0,
-                                          offset: const Offset(0, 10),
-                                        ),
-
-                                        // Tight contact shadow
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.04),
-                                          blurRadius: 6,
-                                          spreadRadius: 0,
-                                          offset: const Offset(0, 2),
-                                        ),
-
-                                        // Luxury purple glow when selected
-                                        if (isSelected)
-                                          BoxShadow(
-                                            color: const Color(
-                                              0xFF6F0562,
-                                            ).withOpacity(0.18),
-                                            blurRadius: 18,
-                                            spreadRadius: 1,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                      ],
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 30,
-                                      backgroundColor: Colors.grey.shade100,
-                                      child: ClipOval(
-                                        child: cat.image.startsWith('assets/')
-                                            ? Image.asset(
-                                                cat.image,
-                                                width: 60,
-                                                height: 60,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : cat.image.isNotEmpty
-                                            ? CachedNetworkImage(
-                                                imageUrl: cat.image,
-                                                width: 60,
-                                                height: 60,
-                                                fit: BoxFit.cover,
-                                                placeholder: (_, __) =>
-                                                    const Center(
-                                                      child: SizedBox(
-                                                        width: 18,
-                                                        height: 18,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                              strokeWidth: 2,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                errorWidget: (_, __, ___) =>
-                                                    const Icon(Icons.category),
-                                              )
-                                            : const Icon(Icons.category),
-                                      ),
-                                    ),
-                                  ),
+  width: 70,
+  height: 120,
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(20),
+    border: Border.all(
+      color: isSelected
+          ? const Color(0xFF6F0562)
+          : Colors.transparent,
+      width: 2,
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.06),
+        blurRadius: 24,
+        offset: const Offset(0, 10),
+      ),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.04),
+        blurRadius: 6,
+        offset: const Offset(0, 2),
+      ),
+      if (isSelected)
+        BoxShadow(
+          color: const Color(
+            0xFF6F0562,
+          ).withValues(alpha: 0.18),
+          blurRadius: 18,
+          spreadRadius: 1,
+          offset: const Offset(0, 4),
+        ),
+    ],
+  ),
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(18),
+    child: cat.image.startsWith('assets/')
+        ? Image.asset(
+            cat.image,
+            fit: BoxFit.contain,
+          )
+        : cat.image.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: cat.image,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => const Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+                errorWidget: (_, __, ___) =>
+                    const Icon(Icons.category),
+              )
+            : const Icon(Icons.category),
+  ),
+),
 
                                   const SizedBox(height: 6),
 

@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:glowfit/models/addressmodel.dart';
 import 'package:glowfit/models/coupon_model.dart';
+import 'package:glowfit/models/freegit.dart';
+import 'package:glowfit/models/herosectionmodel.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -190,4 +193,159 @@ Future<List<CouponModel>> fetchCoupons() async {
       throw Exception("Failed to update coupon usage: $e");
     }
   }
+
+  /// =====================================================
+/// 🎁 FETCH FREE GIFT SETTINGS
+/// =====================================================
+
+Future<FreeGiftModel?> getFreeGiftSettings() async {
+  try {
+    print("🎁 Fetching free gift settings...");
+
+    final snapshot = await _db
+        .collection('app_settings')
+        .doc('free_gift')
+        .get();
+
+    print("📄 Document exists: ${snapshot.exists}");
+
+    if (!snapshot.exists) {
+      print("❌ free_gifts document not found");
+      return null;
+    }
+
+    final data = snapshot.data();
+
+    print("📦 Raw Firestore Data:");
+    print(data);
+
+    if (data == null) {
+      print("❌ Document data is null");
+      return null;
+    }
+
+    final settings =
+        FreeGiftModel.fromMap(data);
+
+    print("✅ Model parsed successfully");
+    print("Enabled: ${settings.enabled}");
+    print("Start At: ${settings.startAt}");
+    print("End At: ${settings.endAt}");
+
+    if (!settings.enabled) {
+      print("❌ Free gifts disabled");
+      return null;
+    }
+
+    final now = DateTime.now();
+
+    print("🕒 Current Time: $now");
+
+    if (settings.startAt != null &&
+        now.isBefore(settings.startAt!.toDate())) {
+      print(
+        "❌ Campaign not started yet. Starts: ${settings.startAt!.toDate()}",
+      );
+      return null;
+    }
+
+    if (settings.endAt != null &&
+        now.isAfter(settings.endAt!.toDate())) {
+      print(
+        "❌ Campaign expired. Ended: ${settings.endAt!.toDate()}",
+      );
+      return null;
+    }
+
+    print("🎉 Free gift campaign is ACTIVE");
+    return settings;
+  } catch (e, stack) {
+    print("❌ Failed to fetch free gifts");
+    print("Error: $e");
+    print("Stack: $stack");
+    return null;
+  }
+}
+
+/// =====================================================
+/// 🎁 GET ELIGIBLE GIFT FOR CART TOTAL
+/// =====================================================
+
+FreeGiftTier? getEligibleGift({
+  required double subtotal,
+  required FreeGiftModel settings,
+}) {
+  if (!settings.enabled) {
+    return null;
+  }
+
+  FreeGiftTier? eligible;
+
+  final sortedTiers =
+      [...settings.tiers]
+        ..sort(
+          (a, b) => a.minimumOrder
+              .compareTo(
+                b.minimumOrder,
+              ),
+        );
+
+  for (final tier in sortedTiers) {
+    if (subtotal >= tier.minimumOrder) {
+      eligible = tier;
+    }
+  }
+
+  return eligible;
+}
+
+
+/// =====================================================
+/// 🎁 GET NEXT GIFT TIER
+/// =====================================================
+
+FreeGiftTier? getNextGiftTier({
+  required double subtotal,
+  required FreeGiftModel settings,
+}) {
+  final sortedTiers =
+      [...settings.tiers]
+        ..sort(
+          (a, b) => a.minimumOrder
+              .compareTo(
+                b.minimumOrder,
+              ),
+        );
+
+  for (final tier in sortedTiers) {
+    if (subtotal < tier.minimumOrder) {
+      return tier;
+    }
+  }
+
+  return null;
+}
+
+Future<HeroSettings?> getHeroSettings() async {
+  try {
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('app_settings')
+            .doc('hero')
+            .get();
+
+    if (!doc.exists) {
+      return null;
+    }
+
+    return HeroSettings.fromMap(
+      doc.data()!,
+    );
+  } catch (e) {
+    debugPrint(
+      "Hero settings error: $e",
+    );
+    return null;
+  }
+}
 }
