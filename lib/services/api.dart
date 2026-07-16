@@ -24,7 +24,7 @@ class APIService {
 static Future<List<Productsmodel>> fetchProductsByCategory({
   required String categoryId,
   int page = 1,
-  int perPage = 10,
+  int perPage = 20,
 }) async {
   final queryParams = {
     'category': categoryId,

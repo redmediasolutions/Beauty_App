@@ -37,24 +37,28 @@ class _ProductsListState
   @override
   Widget build(BuildContext context) {
 
-    final double regular =
-        double.tryParse(
-              widget.product
-                      .regularPrice
-                      ?.toString() ??
-                  '',
-            ) ??
-            0;
+    final double taxRate =
+    widget.product.taxRate.toDouble();
 
-    final double sale =
-        double.tryParse(
-              widget.product
-                      .salePrice
-                      ?.toString() ??
-                  '',
-            ) ??
-            0;
+double withTax(double price) {
+  return price * (1 + taxRate / 100);
+}
 
+final double regular =
+    withTax(
+      double.tryParse(
+            widget.product.regularPrice?.toString() ?? '',
+          ) ??
+          0,
+    );
+
+final double sale =
+    withTax(
+      double.tryParse(
+            widget.product.salePrice?.toString() ?? '',
+          ) ??
+          0,
+    );
     final bool hasDiscount =
         sale > 0 &&
             sale < regular;

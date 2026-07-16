@@ -184,6 +184,10 @@ print("================================");
     }
   }
 
+  double priceIncludingTax(double price, double taxRate) {
+  return price + (price * taxRate / 100);
+}
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -629,10 +633,16 @@ print("================================");
   Widget _productdetails(BuildContext context, ProductDetail p) {
     // Calculate savings
 
-    final double mrp = p.price;
+    final double taxRate = p.taxRate;
 
-    final double salePrice = p.salePrice ?? p.price;
+final double mrp =
+    priceIncludingTax(p.price, taxRate);
 
+final double salePrice =
+    priceIncludingTax(
+      p.salePrice ?? p.price,
+      taxRate,
+    );
     final double savingsPercent = mrp > 0 ? ((mrp - salePrice) / mrp) * 100 : 0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -744,6 +754,18 @@ print("================================");
               ),
             ),
           ],
+          const SizedBox(height: 20),
+          Text(
+              "Prices inclusive of GST",
+
+              style: GoogleFonts.manrope(
+                fontSize: 13,
+
+                fontWeight: FontWeight.w600,
+
+                color: const Color.fromARGB(255, 154, 154, 154),
+              ),
+            ),
           const SizedBox(height: 20),
         ],
       ),

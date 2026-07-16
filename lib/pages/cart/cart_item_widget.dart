@@ -13,6 +13,8 @@ class CartItemWidget extends StatelessWidget {
 
   final double salePrice;
 
+  final double taxRate;
+
   const CartItemWidget({
     super.key,
     required this.name,
@@ -23,28 +25,39 @@ class CartItemWidget extends StatelessWidget {
     required this.onRemove,
     required this.mrp,
     required this.salePrice,
+    required this.taxRate,
+
   });
 
   @override
   Widget build(BuildContext context) {
   
-    final int discountPercent = mrp > salePrice
+double withTax(double price) {
+  return price * (1 + taxRate / 100);
+}
 
-    ? (((mrp - salePrice) / mrp) * 100).round()
+// Original prices
+final double originalMrp = mrp;
+final double originalSale = salePrice;
 
-    : 0;
+// Display prices (GST inclusive)
+final double displayMrp = withTax(originalMrp);
+final double displaySale = withTax(originalSale);
+
+final int discountPercent =
+    originalMrp > originalSale
+        ? (((originalMrp - originalSale) / originalMrp) * 100).round()
+        : 0;
 
 final double totalSalePrice =
-
-    salePrice * quantity;
+    displaySale * quantity;
 
 final double totalMrp =
+    displayMrp * quantity;
 
-    mrp * quantity;
-
+// Keep savings based on original prices
 final double totalSavings =
-
-    (mrp - salePrice) * quantity;
+    (originalMrp - originalSale) * quantity;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -100,7 +113,7 @@ final double totalSavings =
     Text(
       quantity > 1
           ? "₹${totalSalePrice.toStringAsFixed(0)}"
-          : "₹${salePrice.toStringAsFixed(0)}",
+          : "₹${displaySale.toStringAsFixed(0)}",
       style: const TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.bold,
@@ -112,7 +125,7 @@ final double totalSavings =
 
     if (quantity > 1)
       Text(
-        "${quantity} × ₹${salePrice.toStringAsFixed(0)}",
+        "${quantity} × ₹${displaySale.toStringAsFixed(0)}",
         style: TextStyle(
           fontSize: 12,
           color: Colors.grey.shade600,
@@ -126,7 +139,7 @@ final double totalSavings =
       children: [
         if (mrp > salePrice)
           Text(
-            "₹${totalMrp.toStringAsFixed(0)}",
+            "₹${(quantity > 1 ? totalMrp : displayMrp).toStringAsFixed(0)}",
             style: TextStyle(
               fontSize: 13,
               color: Colors.grey.shade600,

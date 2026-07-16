@@ -1180,6 +1180,7 @@ _finalCheckoutTotal = double.parse(
                           onRemove: () async {
                             await _repository.removeItem(docId);
                           },
+                          taxRate: (data['taxRate'] as num?)?.toDouble() ?? 18,
                         ),
                       );
                     },
