@@ -32,7 +32,11 @@ class _CartPageState extends State<CartPage> {
   final FirestoreService _firestoreService = FirestoreService();
   late Razorpay _razorpay;
 
+<<<<<<< Updated upstream
   bool _usePoints = false;
+=======
+  final bool _usePoints = false;
+>>>>>>> Stashed changes
   bool _isProcessing = false;
   String _selectedPayment = "cod";
   Map<String, dynamic>? _selectedAddress;
@@ -887,7 +891,11 @@ GST Rate: ${data['taxRate']}
                         height: 120,
                         width: 120,
                         decoration: BoxDecoration(
+<<<<<<< Updated upstream
                           color: const Color(0xFF6F0562).withOpacity(0.08),
+=======
+                          color: const Color(0xFF6F0562).withValues(alpha: 0.08),
+>>>>>>> Stashed changes
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(

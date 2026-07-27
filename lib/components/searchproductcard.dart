@@ -250,8 +250,13 @@ class _SearchProductCardState
                         decoration:
                             BoxDecoration(
                           color: Colors.black
+<<<<<<< Updated upstream
                               .withOpacity(
                             0.45,
+=======
+                              .withValues(
+                            alpha: 0.45,
+>>>>>>> Stashed changes
                           ),
 
                           borderRadius:

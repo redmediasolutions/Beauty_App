@@ -118,7 +118,11 @@ class ProfileHeader extends StatelessWidget {
 
           BoxShadow(
 
+<<<<<<< Updated upstream
             color: Colors.black.withOpacity(0.04),
+=======
+            color: Colors.black.withValues(alpha: 0.04),
+>>>>>>> Stashed changes
 
             blurRadius: 20,
 
@@ -156,7 +160,11 @@ class ProfileHeader extends StatelessWidget {
                       width: 68,
                       height: 68,
                       fit: BoxFit.cover,
+<<<<<<< Updated upstream
                       errorBuilder: (_, __, ___) => const Icon(
+=======
+                      errorBuilder: (_, _, _) => const Icon(
+>>>>>>> Stashed changes
                         Icons.person,
                         size: 34,
                         color: Color(0xFF6F0562),

@@ -168,7 +168,7 @@ class OrdersPage extends StatelessWidget {
         return ListView.separated(
           padding: const EdgeInsets.all(16),
           itemCount: orders.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 16),
+          separatorBuilder: (_, _) => const SizedBox(height: 16),
 
           itemBuilder: (context, index) {
             final order = orders[index];

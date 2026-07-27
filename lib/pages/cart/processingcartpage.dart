@@ -53,7 +53,11 @@ class _ProcessingOrderScreenState
                 decoration: BoxDecoration(
                   color: const Color(
                     0xFF6F0562,
+<<<<<<< Updated upstream
                   ).withOpacity(.08),
+=======
+                  ).withValues(alpha: .08),
+>>>>>>> Stashed changes
 
                   shape: BoxShape.circle,
                 ),

@@ -414,7 +414,11 @@ print("================================");
 
         boxShadow: [
           BoxShadow(
+<<<<<<< Updated upstream
             color: Colors.black.withOpacity(0.03),
+=======
+            color: Colors.black.withValues(alpha: 0.03),
+>>>>>>> Stashed changes
 
             blurRadius: 18,
 
@@ -504,7 +508,7 @@ print("================================");
         icon,
         height: 24,
         width: 24,
-        errorBuilder: (_, __, ___) =>
+        errorBuilder: (_, _, _) =>
             const Icon(Icons.star, color: Color(0xFF8A206E)),
       );
     }
@@ -555,7 +559,11 @@ print("================================");
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
+<<<<<<< Updated upstream
                       color: Colors.black.withOpacity(0.05),
+=======
+                      color: Colors.black.withValues(alpha: 0.05),
+>>>>>>> Stashed changes
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -862,7 +870,11 @@ final double salePrice =
 
             itemCount: relatedProducts.length,
 
+<<<<<<< Updated upstream
             separatorBuilder: (_, __) => const SizedBox(width: 16),
+=======
+            separatorBuilder: (_, _) => const SizedBox(width: 16),
+>>>>>>> Stashed changes
 
             itemBuilder: (context, index) {
               final p = relatedProducts[index];
@@ -943,7 +955,6 @@ class _additionalimagesrow extends StatelessWidget {
   final ProductDetail p; // ✅ ADD THIS
 
   const _additionalimagesrow({
-    super.key,
     required this.p, // ✅ REQUIRE IT
   });
 
@@ -970,7 +981,11 @@ class _additionalimagesrow extends StatelessWidget {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   },
+<<<<<<< Updated upstream
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+=======
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+>>>>>>> Stashed changes
                 ),
               ),
 
@@ -1176,7 +1191,11 @@ if (!widget.p.canAddToCart) {
               color: primaryColor,
               borderRadius: BorderRadius.circular(40),
               boxShadow: [
+<<<<<<< Updated upstream
                 BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 20),
+=======
+                BoxShadow(color: primaryColor.withValues(alpha: 0.3), blurRadius: 20),
+>>>>>>> Stashed changes
               ],
             ),
             child: Row(
@@ -1213,7 +1232,7 @@ if (!widget.p.canAddToCart) {
                   borderRadius: BorderRadius.circular(40),
                   boxShadow: [
                     BoxShadow(
-                      color: primaryColor.withOpacity(0.3),
+                      color: primaryColor.withValues(alpha: 0.3),
                       blurRadius: 20,
                     ),
                   ],

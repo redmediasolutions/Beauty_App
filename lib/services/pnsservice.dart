@@ -6,7 +6,10 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:glowfit/services/gorouter.dart';
+<<<<<<< Updated upstream
 import 'package:go_router/go_router.dart';
+=======
+>>>>>>> Stashed changes
 
 final FlutterLocalNotificationsPlugin
     flutterLocalNotificationsPlugin =

@@ -39,7 +39,11 @@ class SavingsCardWidget extends StatelessWidget {
           BoxShadow(
             color: const Color(
               0xFF6F0562,
+<<<<<<< Updated upstream
             ).withOpacity(0.08),
+=======
+            ).withValues(alpha: 0.08),
+>>>>>>> Stashed changes
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),

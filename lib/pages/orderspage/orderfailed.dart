@@ -23,7 +23,7 @@ class OrderFailedScreen extends StatelessWidget {
               width: 220,
               height: 220,
               repeat: false,
-              errorBuilder: (_, __, ___) => const Icon(
+              errorBuilder: (_, _, _) => const Icon(
                 Icons.error_outline,
                 size: 100,
                 color: Colors.red,

@@ -53,8 +53,13 @@ class OrderCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color:
+<<<<<<< Updated upstream
                 Colors.black.withOpacity(
               0.03,
+=======
+                Colors.black.withValues(
+              alpha: 0.03,
+>>>>>>> Stashed changes
             ),
             blurRadius: 12,
             offset: const Offset(0, 4),
@@ -76,8 +81,13 @@ class OrderCard extends StatelessWidget {
 
                 decoration: BoxDecoration(
                   color:
+<<<<<<< Updated upstream
                       primaryColor.withOpacity(
                     0.08,
+=======
+                      primaryColor.withValues(
+                    alpha: 0.08,
+>>>>>>> Stashed changes
                   ),
 
                   borderRadius:
@@ -140,7 +150,11 @@ class OrderCard extends StatelessWidget {
 
                 decoration: BoxDecoration(
                   color: statusColor
+<<<<<<< Updated upstream
                       .withOpacity(0.10),
+=======
+                      .withValues(alpha: 0.10),
+>>>>>>> Stashed changes
 
                   borderRadius:
                       BorderRadius.circular(
