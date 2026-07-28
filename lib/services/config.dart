@@ -1,6 +1,5 @@
 
 
-import 'dart:async';
 
 class Config {
   // Your WooCommerce REST API Keys

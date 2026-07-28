@@ -11,7 +11,6 @@ import 'package:glowfit/components/products_List.dart';
 import 'package:glowfit/models/product_detail.dart';
 import 'package:glowfit/models/product_model.dart';
 import 'package:glowfit/models/producthighlight.dart';
-import 'package:glowfit/pages/single_product/pagescroll_trigger.dart';
 import 'package:glowfit/services/api.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
