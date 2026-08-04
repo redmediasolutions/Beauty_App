@@ -32,11 +32,7 @@ class _CartPageState extends State<CartPage> {
   final FirestoreService _firestoreService = FirestoreService();
   late Razorpay _razorpay;
 
-<<<<<<< Updated upstream
   bool _usePoints = false;
-=======
-  final bool _usePoints = false;
->>>>>>> Stashed changes
   bool _isProcessing = false;
   String _selectedPayment = "cod";
   Map<String, dynamic>? _selectedAddress;
@@ -46,6 +42,8 @@ class _CartPageState extends State<CartPage> {
   String? _razorpayOrderId;
   String? _razorpayKey;
 
+  double _availableRewards = 0;
+
   List<CouponModel> coupons = [];
   CouponModel? selectedCoupon;
   bool isLoadingCoupons = true;
@@ -54,6 +52,8 @@ class _CartPageState extends State<CartPage> {
   double _finalCheckoutTotal = 0;
   double _adjustedTaxAmount = 0;
   FreeGiftModel? _freeGiftSettings;
+
+  double _pointsDiscountAmount = 0;
 
 bool _loadingFreeGift = true;
 
@@ -704,14 +704,15 @@ debugPrint("=================================");
       final result = await _repository.createSecureOrder(
         paymentMethod: _selectedPayment,
         useWallet: _usePoints,
+        walletAmount: _pointsDiscountAmount,
         couponId: selectedCoupon?.id,
         couponCode: selectedCoupon?.code,
-        couponDiscount: couponDiscountAmount,
+        couponDiscount: _couponDiscountAmount,
       );
 
-      final payable = (_finalCheckoutTotal - _couponDiscountAmount)
-    .clamp(0, double.infinity)
-    .toDouble();
+    final payable = _finalCheckoutTotal;
+
+
       _razorpayOrderId = result['razorpayOrderId'];
       _razorpayKey = result['razorpayKey'];
 
@@ -790,6 +791,7 @@ debugPrint("=================================");
         razorpaySignature: signature,
         useWallet: _usePoints,
         billing: billing,
+        walletAmount: _pointsDiscountAmount,
         shipping: billing,
         couponId: selectedCoupon?.id,
         couponCode: selectedCoupon?.code,
@@ -891,11 +893,7 @@ GST Rate: ${data['taxRate']}
                         height: 120,
                         width: 120,
                         decoration: BoxDecoration(
-<<<<<<< Updated upstream
-                          color: const Color(0xFF6F0562).withOpacity(0.08),
-=======
                           color: const Color(0xFF6F0562).withValues(alpha: 0.08),
->>>>>>> Stashed changes
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -1078,18 +1076,25 @@ _adjustedTaxAmount =
         // ========================================
 // PRE-DISCOUNT TOTAL
 // ========================================
+// ========================================
+// REWARD POINTS DISCOUNT
+// ========================================
 
+_pointsDiscountAmount =
+    _usePoints
+        ? (_availableRewards > subtotal
+            ? subtotal
+            : _availableRewards)
+        : 0;
 
 // ========================================
-// POINTS DISCOUNT
+// SUBTOTAL AFTER DISCOUNTS
 // ========================================
-final double pointsDiscountAmount =
-    _usePoints ? 50 : 0;
 
 final double discountedSubtotal =
     subtotal -
     _couponDiscountAmount -
-    pointsDiscountAmount;
+    _pointsDiscountAmount;
 
 final double safeSubtotal =
     discountedSubtotal < 0
@@ -1345,6 +1350,154 @@ const SizedBox(height: 30),
                   ),
                   const SizedBox(height: 30),
 
+StreamBuilder<QuerySnapshot>(
+  stream: FirebaseFirestore.instance
+      .collection('Users')
+      .doc(user.uid)
+      .collection('walletTransactions')
+      .snapshots(),
+  builder: (context, snapshot) {
+    if (!snapshot.hasData) {
+      return const SizedBox.shrink();
+    }
+
+    double availableRewards = 0;
+
+    for (final doc in snapshot.data!.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+
+      final amount =
+          ((data['amount'] ?? 0) as num).toDouble();
+
+      final status = data['status'] ?? '';
+
+      final source = data['source'] ?? '';
+
+      final type = data['type'] ?? 'credit';
+
+      // Available balance
+      if (status == 'credited') {
+        if (type == 'credit') {
+          availableRewards += amount;
+        }
+
+        if (type == 'debit') {
+          availableRewards -= amount;
+        }
+      }
+
+      // Approved debits should no longer be available
+      if (status == 'approved' &&
+          type == 'debit') {
+        availableRewards -= amount;
+      }
+    }
+
+    if (availableRewards < 0) {
+      availableRewards = 0;
+    }
+
+    if (_availableRewards != availableRewards) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+
+    setState(() {
+      _availableRewards = availableRewards;
+    });
+  });
+}
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: _usePoints
+              ? const Color(0xFF6F0562)
+              : Colors.grey.shade200,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFF6F0562)
+                  .withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.workspace_premium_rounded,
+              color: Color(0xFF6F0562),
+            ),
+          ),
+
+          const SizedBox(width: 16),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Reward Wallet",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  "Available ${availableRewards.toStringAsFixed(2)}",
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                Text(
+                  availableRewards > 0
+                      ? "Apply rewards to this order"
+                      : "No rewards available",
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Switch.adaptive(
+            value: _usePoints,
+            activeColor: const Color(0xFF6F0562),
+            onChanged: availableRewards <= 0
+                ? null
+                : (value) {
+                    setState(() {
+                      _usePoints = value;
+                    });
+                  },
+          ),
+        ],
+      ),
+    );
+  },
+),
+const SizedBox(height: 30),
                   /// PAYMENT METHOD
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1413,16 +1566,17 @@ const SizedBox(height: 30),
 
                   /// BILL SUMMARY
                   BillSummaryWidget(
-                    totalMrp: totalMrp,
-                    subtotal: subtotal,
-                    tax: _adjustedTaxAmount,
-                    gstBreakup: gstBreakup,
-                    shipping: shipping,
-                    total: _finalCheckoutTotal,
-                    usePoints: _usePoints,
-                    couponDiscount: _couponDiscountAmount,
-                    codCharges: codChargesAmount,
-                  ),
+  totalMrp: totalMrp,
+  subtotal: subtotal,
+  tax: _adjustedTaxAmount,
+  gstBreakup: gstBreakup,
+  shipping: shipping,
+  total: _finalCheckoutTotal,
+  usePoints: _usePoints,
+  rewardDiscount: _pointsDiscountAmount,
+  couponDiscount: _couponDiscountAmount,
+  codCharges: codChargesAmount,
+),
                   const SizedBox(height: 30),
 
                   /// CHECKOUT BUTTON

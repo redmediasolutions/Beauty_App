@@ -15,11 +15,20 @@ import 'package:glowfit/pages/single_product/pagescroll_trigger.dart';
 import 'package:glowfit/services/api.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ProductsView extends StatefulWidget {
-  final String productId;
+  final String? productId;
+final String? productSlug;
 
-  const ProductsView({super.key, required this.productId});
+const ProductsView({
+  super.key,
+  this.productId,
+  this.productSlug,
+}) : assert(
+        productId != null || productSlug != null,
+        'Either productId or productSlug must be provided.',
+      );
 
   @override
   State<ProductsView> createState() => _ProductsViewState();
@@ -38,7 +47,7 @@ class _ProductsViewState extends State<ProductsView> {
   @override
 void initState() {
   super.initState();
-
+  debugPrint('📦 ProductsView init: ${widget.productSlug}');
   fetchProduct();
 
   _scrollController.addListener(() {
@@ -78,6 +87,27 @@ void initState() {
       .get();
 
   return snapshot.docs.isNotEmpty;
+}
+
+
+Future<void> _shareProduct(ProductDetail product) async {
+  final url =
+      'https://gladskin.in/products/${product.slug}';
+
+  final message = '''
+${product.name}
+
+Discover this product on Glad Skin.
+
+$url
+''';
+
+  await SharePlus.instance.share(
+    ShareParams(
+      text: message,
+      subject: product.name,
+    ),
+  );
 }
 
   Future<void> _addToCart(ProductDetail p) async {
@@ -195,48 +225,51 @@ print("================================");
   }
 
   Future<void> fetchProduct() async {
-    try {
-      print("🟡 Fetching Product ID: ${widget.productId}");
+  try {
+    setState(() {
+      isLoading = true;
+      hasError = false;
+    });
 
-      setState(() {
-        isLoading = true;
-        hasError = false;
-      });
+    debugPrint(
+      widget.productId != null
+          ? "🟡 Fetching Product ID: ${widget.productId}"
+          : "🟡 Fetching Product Slug: ${widget.productSlug}",
+    );
 
-      final productData = await APIService.fetchSingleProductDetail(
-        widget.productId,
-      ).timeout(const Duration(seconds: 15));
+    final productData = await APIService.fetchSingleProductDetail(
+      productId: widget.productId,
+      slug: widget.productSlug,
+    ).timeout(const Duration(seconds: 15));
 
-      /// ✅ Handle null
-      if (productData == null) {
-        throw Exception("Product not found");
-      }
-
-      if (!mounted) return;
-
-      print("✅ Product Loaded: ${productData.name}");
-      print("➡️ Images: ${productData.images.length}");
-      print("➡️ Highlights: ${productData.highlights.length}");
-
-      setState(() {
-        product = productData; // ✅ NO fromJson here
-        isLoading = false;
-      });
-    } catch (e, stack) {
-      print("❌ Error fetching product: $e");
-      print("📍 Stacktrace: $stack");
-
-      if (!mounted) return;
-
-      setState(() {
-        hasError = true;
-        isLoading = false;
-      });
+    if (productData == null) {
+      throw Exception("Product not found");
     }
+
+    if (!mounted) return;
+
+    setState(() {
+      product = productData;
+      isLoading = false;
+    });
+
+    debugPrint("✅ Product Loaded: ${productData.name}");
+  } catch (e, stack) {
+    debugPrint("❌ Error fetching product: $e");
+    debugPrintStack(stackTrace: stack);
+
+    if (!mounted) return;
+
+    setState(() {
+      hasError = true;
+      isLoading = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
+      debugPrint('🔄 ProductsView build: ${widget.productSlug}');
     /// 🔄 LOADING
     if (isLoading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -414,11 +447,7 @@ print("================================");
 
         boxShadow: [
           BoxShadow(
-<<<<<<< Updated upstream
-            color: Colors.black.withOpacity(0.03),
-=======
             color: Colors.black.withValues(alpha: 0.03),
->>>>>>> Stashed changes
 
             blurRadius: 18,
 
@@ -533,9 +562,22 @@ print("================================");
       children: [
         const SizedBox(height: 30),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Text(p.manufacturer.toUpperCase()),
+  padding: const EdgeInsets.symmetric(horizontal: 24),
+  child: Row(
+    children: [
+      Expanded(
+        child: Text(
+          p.manufacturer.toUpperCase(),
         ),
+      ),
+      IconButton(
+        tooltip: 'Share',
+        icon: const Icon(Icons.share_outlined),
+        onPressed: () => _shareProduct(p),
+      ),
+    ],
+  ),
+),
         // =========================== IMAGE CAROUSEL SECTION =========================
         CarouselSlider(
           options: CarouselOptions(
@@ -559,11 +601,7 @@ print("================================");
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-<<<<<<< Updated upstream
-                      color: Colors.black.withOpacity(0.05),
-=======
                       color: Colors.black.withValues(alpha: 0.05),
->>>>>>> Stashed changes
                       blurRadius: 10,
                       offset: const Offset(0, 5),
                     ),
@@ -870,11 +908,7 @@ final double salePrice =
 
             itemCount: relatedProducts.length,
 
-<<<<<<< Updated upstream
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
-=======
             separatorBuilder: (_, _) => const SizedBox(width: 16),
->>>>>>> Stashed changes
 
             itemBuilder: (context, index) {
               final p = relatedProducts[index];
@@ -884,7 +918,11 @@ final double salePrice =
 
                 child: GestureDetector(
                   onTap: () {
-                    context.push('/product/${p.id}');
+                    context.push(
+  p.slug.isNotEmpty
+      ? '/products/${p.slug}'
+      : '/product/${p.id}',
+);
                   },
 
                   child: ProductsList(
@@ -981,11 +1019,7 @@ class _additionalimagesrow extends StatelessWidget {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   },
-<<<<<<< Updated upstream
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-=======
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
->>>>>>> Stashed changes
                 ),
               ),
 
@@ -1191,11 +1225,7 @@ if (!widget.p.canAddToCart) {
               color: primaryColor,
               borderRadius: BorderRadius.circular(40),
               boxShadow: [
-<<<<<<< Updated upstream
-                BoxShadow(color: primaryColor.withOpacity(0.3), blurRadius: 20),
-=======
                 BoxShadow(color: primaryColor.withValues(alpha: 0.3), blurRadius: 20),
->>>>>>> Stashed changes
               ],
             ),
             child: Row(

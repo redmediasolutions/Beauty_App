@@ -1,6 +1,8 @@
+import 'package:app_links/app_links.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:glowfit/firebase_options.dart';
+import 'package:glowfit/services/app_links.dart';
 import 'package:glowfit/services/gorouter.dart';
 import 'package:glowfit/services/pnsservice.dart';
 import 'package:glowfit/services/remoteconfig.dart';
@@ -16,6 +18,12 @@ void main() async {
   await PushNotificationService.init();
 
   await RemoteConfigService.init();
+
+   final appLinks = AppLinks();
+
+  appLinks.uriLinkStream.listen((uri) {
+    debugPrint("🔥 NEW LINK: $uri");
+  });
 
   runApp(const MainApp());
 }

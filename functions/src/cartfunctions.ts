@@ -1,16 +1,8 @@
-import {
-  onCall,
-  onRequest,
-} from "firebase-functions/v2/https";
-
+import { onCall, onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
-
 import Razorpay from "razorpay";
-
 import crypto from "crypto";
-
 import axios from "axios";
-
 import { sendOrderCreatedMessage } from "./whatsapp";
 
 // =======================================================
@@ -36,25 +28,19 @@ async function getCheckoutSettings(): Promise<CheckoutSettings> {
   const data = snap.data() ?? {};
 
   return {
-    shippingThreshold:
-      Number(data.shipping_threshold ?? 499),
-
-    shippingChargeBelowThreshold:
-      Number(data.shipping_charge_below_threshold ?? 49),
-
-    shippingChargeAboveThreshold:
-      Number(data.shipping_charge_above_threshold ?? 0),
-
-    codThreshold:
-      Number(data.cod_threshold ?? 999),
-
-    codChargeBelowThreshold:
-      Number(data.cod_charge_below_threshold ?? 49),
-
-    codChargeAboveThreshold:
-      Number(data.cod_charge_above_threshold ?? 29),
+    shippingThreshold: Number(data.shipping_threshold ?? 499),
+    shippingChargeBelowThreshold: Number(
+      data.shipping_charge_below_threshold ?? 49
+    ),
+    shippingChargeAboveThreshold: Number(
+      data.shipping_charge_above_threshold ?? 0
+    ),
+    codThreshold: Number(data.cod_threshold ?? 999),
+    codChargeBelowThreshold: Number(data.cod_charge_below_threshold ?? 49),
+    codChargeAboveThreshold: Number(data.cod_charge_above_threshold ?? 29),
   };
 }
+
 // =======================================================
 // 🔐 CALCULATION LOGIC
 // =======================================================
@@ -63,16 +49,16 @@ async function calculateCartTotals({
   uid,
   paymentMethod,
   useWallet,
+  walletAmount = 0,
   couponDiscount = 0,
 }: {
   uid: string;
   paymentMethod: string;
   useWallet: boolean;
+  walletAmount?: number;
   couponDiscount?: number;
 }) {
-
-  const to2 = (value: number) =>
-    Number(value.toFixed(2));
+  const to2 = (value: number) => Number(value.toFixed(2));
 
   const settings = await getCheckoutSettings();
 
@@ -94,98 +80,61 @@ async function calculateCartTotals({
   // =====================================
 
   cartSnap.forEach((doc) => {
-
     const item = doc.data();
 
-    const qty =
-      Number(item.quantity || 1);
-
-    const mrp =
-      Number(item.mrp || 0);
-
-    const salePrice =
-      Number(item.salePrice || mrp);
-
-    const lineTotal =
-      salePrice * qty;
+    const qty = Number(item.quantity || 1);
+    const mrp = Number(item.mrp || 0);
+    const salePrice = Number(item.salePrice || mrp);
+    const lineTotal = salePrice * qty;
 
     subtotal += lineTotal;
-
-    totalMrp +=
-      mrp * qty;
-
-    productSavings +=
-      (mrp - salePrice) * qty;
+    totalMrp += mrp * qty;
+    productSavings += (mrp - salePrice) * qty;
 
     // =====================================
     // GST RATE LOGIC
     // SAME AS CART PAGE
     // =====================================
 
-    let gstRate =
-      Number(
-        item.taxRate ??
-        item.TaxRate ??
-        0
-      );
+    let gstRate = Number(item.taxRate ?? item.TaxRate ?? 0);
 
     if (gstRate <= 0) {
+      const taxClass = String(item.taxClass || "").toLowerCase();
 
-      const taxClass =
-        String(
-          item.taxClass || ""
-        ).toLowerCase();
-
-      if (
-        taxClass ===
-        "reduced-rate"
-      ) {
+      if (taxClass === "reduced-rate") {
         gstRate = 5;
       } else {
         gstRate = 18;
       }
     }
 
-    gstSubtotals[gstRate] =
-      (gstSubtotals[gstRate] || 0) +
-      lineTotal;
+    gstSubtotals[gstRate] = (gstSubtotals[gstRate] || 0) + lineTotal;
 
-    console.log(
-      `${item.name} => GST ${gstRate}% => ₹${lineTotal}`
-    );
+    console.log(`${item.name} => GST ${gstRate}% => ₹${lineTotal}`);
   });
 
-  subtotal =
-    to2(subtotal);
-
-  totalMrp =
-    to2(totalMrp);
-
-  productSavings =
-    to2(productSavings);
+  subtotal = to2(subtotal);
+  totalMrp = to2(totalMrp);
+  productSavings = to2(productSavings);
 
   // =====================================
   // SHIPPING
   // SAME AS CART PAGE
   // =====================================
 
-const shipping =
-  subtotal >= settings.shippingThreshold
-    ? settings.shippingChargeAboveThreshold
-    : settings.shippingChargeBelowThreshold;
+  const shipping =
+    subtotal >= settings.shippingThreshold
+      ? settings.shippingChargeAboveThreshold
+      : settings.shippingChargeBelowThreshold;
 
   // =====================================
   // COUPON
   // =====================================
 
-  couponDiscount =
-    to2(couponDiscount);
+  couponDiscount = to2(couponDiscount);
 
-  const taxableBreakup:
-    Record<number, number> = {};
-
-  const gstBreakup:
-    Record<number, number> = {};
+  const taxableBreakup: Record<number, number> = {};
+  const gstBreakup: Record<number, number> = {};
 
   let tax = 0;
 
@@ -193,200 +142,99 @@ const shipping =
   // GST BREAKUP
   // =====================================
 
-  for (
-    const [rateStr, amount]
-    of Object.entries(
-      gstSubtotals
-    )
-  ) {
-
-    const rate =
-      Number(rateStr);
-
+  for (const [rateStr, amount] of Object.entries(gstSubtotals)) {
+    const rate = Number(rateStr);
     const taxableAmount = amount;
+    const gstAmount = taxableAmount * (rate / 100);
 
-    const gstAmount =
-      taxableAmount *
-      (rate / 100);
-
-    taxableBreakup[rate] =
-      to2(taxableAmount);
-
-    gstBreakup[rate] =
-      to2(gstAmount);
+    taxableBreakup[rate] = to2(taxableAmount);
+    gstBreakup[rate] = to2(gstAmount);
 
     tax += gstAmount;
   }
 
-  tax =
-    to2(tax);
+  tax = to2(tax);
 
   // =====================================
   // SUBTOTAL AFTER DISCOUNT
   // =====================================
 
-const discountedSubtotal =
-
-  subtotal;
+  const discountedSubtotal = subtotal;
 
   // =====================================
   // COD
   // SAME AS CART PAGE
   // =====================================
 
-const codCharge =
-  paymentMethod === "cod"
-    ? (
-        discountedSubtotal >= settings.codThreshold
-          ? settings.codChargeAboveThreshold
-          : settings.codChargeBelowThreshold
-      )
-    : 0;
+  const codCharge =
+    paymentMethod === "cod"
+      ? discountedSubtotal >= settings.codThreshold
+        ? settings.codChargeAboveThreshold
+        : settings.codChargeBelowThreshold
+      : 0;
 
   // =====================================
   // TOTALS
   // =====================================
 
-const grossTotal =
-  to2(
-    subtotal +
-    tax +
-    shipping +
-    codCharge
-  );
+  const grossTotal = to2(subtotal + tax + shipping + codCharge);
 
-  const userDoc =
-    await admin
-      .firestore()
-      .collection("Users")
-      .doc(uid)
-      .get();
+  const userDoc = await admin.firestore().collection("Users").doc(uid).get();
 
-  const walletBalance =
-    Number(
-      userDoc.data()
-        ?.walletBalance || 0
-    );
+  const walletBalance = Number(userDoc.data()?.walletBalance || 0);
 
-const walletUsed =
-  useWallet
-    ? to2(
-        Math.min(
-          walletBalance,
-          grossTotal
-        )
-      )
+  const walletUsed = useWallet
+    ? to2(Math.min(walletAmount, walletBalance, grossTotal))
     : 0;
 
-const finalPayable =
-  to2(
-    grossTotal -
-    couponDiscount -
-    walletUsed
-  );
+  const finalPayable = to2(grossTotal - couponDiscount - walletUsed);
 
   return {
-
     subtotal,
-
     totalMrp,
-
     productSavings,
-
     gstSubtotals,
-
     taxableBreakup,
-
     gstBreakup,
-
-    taxable18:
-      taxableBreakup[18] || 0,
-
-    taxable5:
-      taxableBreakup[5] || 0,
-
-    gst18:
-      gstBreakup[18] || 0,
-
-    gst5:
-      gstBreakup[5] || 0,
-
+    taxable18: taxableBreakup[18] || 0,
+    taxable5: taxableBreakup[5] || 0,
+    gst18: gstBreakup[18] || 0,
+    gst5: gstBreakup[5] || 0,
     tax,
-
     couponDiscount,
-
     shipping,
-
     codCharge,
-
     discountedSubtotal,
-
-    discountedTotal:
-
-  to2(
-
-    grossTotal -
-
-    couponDiscount
-
-  ),
-
+    discountedTotal: to2(grossTotal - couponDiscount),
     walletBalance,
-
     walletUsed,
-
     grossTotal,
-
     finalPayable,
-
     cartSnap,
   };
 }
-
-// =======================================================
-// 🔐 RAZORPAY INSTANCE
-// =======================================================
 
 // =======================================================
 // 📦 GET CART RATES
 // =======================================================
 
 export const getCartRates = onCall(
-
   {
-
     maxInstances: 10,
-
     concurrency: 80,
-
   },
-
   async (request) => {
-
     const settings = await getCheckoutSettings();
 
-return {
-  freeShippingThreshold:
-    settings.shippingThreshold,
-
-  shippingBelowThreshold:
-    settings.shippingChargeBelowThreshold,
-
-  shippingAboveThreshold:
-    settings.shippingChargeAboveThreshold,
-
-  codThreshold:
-    settings.codThreshold,
-
-  codChargeBelowThreshold:
-    settings.codChargeBelowThreshold,
-
-  codChargeAboveThreshold:
-    settings.codChargeAboveThreshold,
-};
-
+    return {
+      freeShippingThreshold: settings.shippingThreshold,
+      shippingBelowThreshold: settings.shippingChargeBelowThreshold,
+      shippingAboveThreshold: settings.shippingChargeAboveThreshold,
+      codThreshold: settings.codThreshold,
+      codChargeBelowThreshold: settings.codChargeBelowThreshold,
+      codChargeAboveThreshold: settings.codChargeAboveThreshold,
+    };
   }
-
 );
 
 // =======================================================
@@ -399,122 +247,76 @@ export const getCartPreviewTotals = onCall(
     concurrency: 80,
   },
   async (request) => {
-
     if (!request.auth) {
       throw new Error("Unauthenticated");
     }
 
     const uid = request.auth.uid;
-
     const data = request.data as any;
 
-    const paymentMethod =
-      data.paymentMethod || "online";
+    const paymentMethod = data.paymentMethod || "online";
+    const useWallet = data.useWallet === true;
+    const walletAmount = Number(data.walletAmount || 0);
 
-    const useWallet =
-      data.useWallet === true;
+    const couponDiscount =
+      Math.round(Number(data.couponDiscount || 0) * 100) / 100;
 
-  const couponDiscount =
-  Math.round(
-    Number(
-      data.couponDiscount || 0
-    ) * 100
-  ) / 100;
     // =====================================
     // USE SAME CALCULATION ENGINE
     // AS CART + CREATE ORDER
     // =====================================
 
-    const totals =
-      await calculateCartTotals({
-        uid,
-        paymentMethod,
-        useWallet,
-        couponDiscount,
-      });
+    const totals = await calculateCartTotals({
+      uid,
+      paymentMethod,
+      useWallet,
+      walletAmount,
+      couponDiscount,
+    });
 
     return {
-
       // ==========================
       // PRODUCT TOTALS
       // ==========================
-
-      subtotal:
-        totals.subtotal,
-
-      totalMrp:
-        totals.totalMrp,
-
-      productSavings:
-        totals.productSavings,
+      subtotal: totals.subtotal,
+      totalMrp: totals.totalMrp,
+      productSavings: totals.productSavings,
 
       // ==========================
       // COUPON
       // ==========================
-
-      couponDiscount:
-        totals.couponDiscount,
-
-      discountedSubtotal:
-        totals.discountedSubtotal,
+      couponDiscount: totals.couponDiscount,
+      discountedSubtotal: totals.discountedSubtotal,
 
       // ==========================
       // GST
       // ==========================
-
-      gst18:
-        totals.gst18,
-
-      gst5:
-        totals.gst5,
-
+      gst18: totals.gst18,
+      gst5: totals.gst5,
       taxable18: totals.taxable18,
-      
       taxable5: totals.taxable5,
-
-      tax:
-        totals.tax,
-
-      gstBreakup:
-
-  totals.gstBreakup,
-
-taxableBreakup:
-
-  totals.taxableBreakup,
+      tax: totals.tax,
+      gstBreakup: totals.gstBreakup,
+      taxableBreakup: totals.taxableBreakup,
 
       // ==========================
       // SHIPPING / COD
       // ==========================
-
-      shipping:
-        totals.shipping,
-
-      codCharge:
-        totals.codCharge,
+      shipping: totals.shipping,
+      codCharge: totals.codCharge,
 
       // ==========================
       // WALLET
       // ==========================
-
-      walletBalance:
-        totals.walletBalance,
-
-      walletUsed:
-        totals.walletUsed,
+      walletBalance: totals.walletBalance,
+      walletUsed: totals.walletUsed,
 
       // ==========================
       // TOTALS
       // ==========================
-
-      grossTotal:
-        totals.grossTotal,
-
-      discountedTotal:
-        totals.discountedTotal,
-
-      finalPayable:
-        totals.finalPayable,
+      grossTotal: totals.grossTotal,
+      discountedTotal: totals.discountedTotal,
+      finalPayable: totals.finalPayable,
     };
   }
 );
@@ -522,19 +324,14 @@ taxableBreakup:
 // =======================================================
 // 🛒 CREATE SECURE ORDER
 // =======================================================
+
 export const createSecureOrder = onCall(
   {
-    secrets: [
-      "RAZORPAY_KEY_ID",
-      "RAZORPAY_KEY_SECRET",
-    ],
-
+    secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
     maxInstances: 10,
     concurrency: 80,
   },
-
   async (request) => {
-
     // =========================================
     // 🔐 AUTH
     // =========================================
@@ -544,49 +341,37 @@ export const createSecureOrder = onCall(
     }
 
     const uid = request.auth.uid;
-
-    const data =
-      request.data as any;
+    const data = request.data as any;
 
     // =========================================
     // 🎟 COUPON DATA
     // =========================================
 
-    const couponId =
-      data.couponId || null;
-
-    const couponCode =
-      data.couponCode || null;
+    const couponId = data.couponId || null;
+    const couponCode = data.couponCode || null;
+    const useWallet = data.useWallet === true;
 
     const couponDiscount =
-  Math.round(
-    Number(
-      data.couponDiscount || 0
-    ) * 100
-  ) / 100;
+      Math.round(Number(data.couponDiscount || 0) * 100) / 100;
 
     // =========================================
     // 💳 PAYMENT
     // =========================================
 
-    const paymentMethod =
-      data.paymentMethod ||
-      "online";
-
-    const useWallet =
-      data.useWallet === true;
+    const paymentMethod = data.paymentMethod || "online";
+    const walletAmount = Number(data.walletAmount || 0);
 
     // =========================================
     // 🧮 CALCULATE TOTALS
     // =========================================
 
-    const totals =
-      await calculateCartTotals({
-        uid,
-        paymentMethod,
-        useWallet,
-        couponDiscount,
-      });
+    const totals = await calculateCartTotals({
+      uid,
+      paymentMethod,
+      useWallet,
+      walletAmount,
+      couponDiscount,
+    });
 
     const {
       subtotal,
@@ -602,231 +387,116 @@ export const createSecureOrder = onCall(
     } = totals;
 
     if (cartSnap.empty) {
-      throw new Error(
-        "Cart is empty"
-      );
+      throw new Error("Cart is empty");
     }
 
     // =========================================
     // 💳 CREATE RAZORPAY ORDER
     // =========================================
 
-    let razorpayOrderId =
-      null;
+    let razorpayOrderId = null;
+    let razorpayAmount = null;
 
-    let razorpayAmount =
-      null;
+    if (paymentMethod === "online" && finalPayable > 0) {
+      console.log("===== RAZORPAY TOTALS =====");
+      console.log("subtotal:", subtotal);
+      console.log("couponDiscount:", couponDiscount);
+      console.log("tax:", tax);
+      console.log("shipping:", shipping);
+      console.log("walletUsed:", walletUsed);
+      console.log("grossTotal:", grossTotal);
+      console.log("finalPayable:", finalPayable);
+      console.log("===========================");
 
-    if (
-      paymentMethod === "online" &&
-      finalPayable > 0
-    ) {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID!,
+        key_secret: process.env.RAZORPAY_KEY_SECRET!,
+      });
 
-       console.log("===== RAZORPAY TOTALS =====");
+      const order = await razorpay.orders.create({
+        amount: Math.round(finalPayable * 100),
+        currency: "INR",
+        receipt: `gladskin_${Date.now()}`,
+        notes: {
+          uid,
+          couponCode: couponCode || "",
+          couponDiscount: couponDiscount.toString(),
+        },
+      });
 
-  console.log("subtotal:", subtotal);
-
-  console.log("couponDiscount:", couponDiscount);
-
-  console.log("tax:", tax);
-
-  console.log("shipping:", shipping);
-
-  console.log("walletUsed:", walletUsed);
-
-  console.log("grossTotal:", grossTotal);
-
-  console.log("finalPayable:", finalPayable);
-
-  console.log("===========================");
-
-      const razorpay =
-        new Razorpay({
-          key_id:
-            process.env
-              .RAZORPAY_KEY_ID!,
-
-          key_secret:
-            process.env
-              .RAZORPAY_KEY_SECRET!,
-        });
-
-      const order =
-        await razorpay
-          .orders
-          .create({
-
-            amount:
-              Math.round(
-                finalPayable * 100
-              ),
-
-            currency:
-              "INR",
-
-            receipt:
-              `gladskin_${Date.now()}`,
-
-            notes: {
-
-              uid,
-
-              couponCode:
-                couponCode || "",
-
-              couponDiscount:
-                couponDiscount
-                  .toString(),
-            },
-          });
-
-      razorpayOrderId =
-        order.id;
-
-      razorpayAmount =
-        order.amount;
+      razorpayOrderId = order.id;
+      razorpayAmount = order.amount;
     }
 
     // =========================================
     // 🔥 SAVE DRAFT ORDER
     // =========================================
 
-    const orderRef =
-      admin
-        .firestore()
-        .collection("Orders")
-        .doc();
+    const orderRef = admin.firestore().collection("Orders").doc();
 
     await orderRef.set({
-
-  uid,
-
-  subtotal,
-
-  taxableBreakup:
-
-    totals.taxableBreakup,
-
-  shipping,
-
-  tax,
-
+      uid,
+      subtotal,
+      taxableBreakup: totals.taxableBreakup,
+      shipping,
+      tax,
       codCharge,
-
       grossTotal,
 
       // =====================================
       // 🎟 COUPON
       // =====================================
-
       couponId,
-
       couponCode,
-
       couponDiscount,
-
       discountedTotal,
 
       // =====================================
       // 👛 WALLET
       // =====================================
-
       walletBalance,
-
       walletUsed,
 
       // =====================================
       // 💳 PAYMENT
       // =====================================
-
       paymentMethod,
-
       finalPayable,
-
       razorpayOrderId,
-
       razorpayAmount,
+      paymentStatus: paymentMethod === "cod" ? "pending" : "created",
+      status: "processing",
 
-      paymentStatus:
-        paymentMethod === "cod"
-          ? "pending"
-          : "created",
-
-      status:"processing",
-      
       // =====================================
       // 🛒 ITEMS SNAPSHOT
       // =====================================
+      items: cartSnap.docs.map((doc) => {
+        const item = doc.data();
 
-      items:
-  cartSnap.docs.map(
-    (doc) => {
+        let taxRate = Number(item.taxRate ?? item.TaxRate ?? 0);
 
-      const item =
-        doc.data();
+        // =====================================
+        // GST FALLBACK
+        // =====================================
+        if (taxRate <= 0) {
+          const taxClass = String(item.taxClass || "").toLowerCase();
+          taxRate = taxClass === "reduced-rate" ? 5 : 18;
+        }
 
-      let taxRate =
-        Number(
-          item.taxRate ??
-          item.TaxRate ??
-          0
-        );
+        return {
+          productId: item.productId,
+          name: item.name || "",
+          image: item.image || "",
+          quantity: item.quantity || 1,
+          salePrice: item.salePrice || 0,
+          mrp: item.mrp || 0,
+          taxClass: item.taxClass || "",
+          taxRate,
+        };
+      }),
 
-      // =====================================
-      // GST FALLBACK
-      // =====================================
-
-      if (taxRate <= 0) {
-
-        const taxClass =
-          String(
-            item.taxClass || ""
-          ).toLowerCase();
-
-        taxRate =
-          taxClass ===
-          "reduced-rate"
-            ? 5
-            : 18;
-      }
-
-      return {
-
-        productId:
-          item.productId,
-
-        name:
-          item.name || "",
-
-        image:
-          item.image || "",
-
-        quantity:
-          item.quantity || 1,
-
-        salePrice:
-          item.salePrice || 0,
-
-        mrp:
-          item.mrp || 0,
-
-        taxClass:
-          item.taxClass || "",
-
-        taxRate,
-      };
-    }
-  ),
-
-      createdAt:
-        admin.firestore
-          .FieldValue
-          .serverTimestamp(),
-
-      updatedAt:
-        admin.firestore
-          .FieldValue
-          .serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // =========================================
@@ -834,48 +504,26 @@ export const createSecureOrder = onCall(
     // =========================================
 
     return {
-
       success: true,
-
-      orderId:
-        orderRef.id,
-
+      orderId: orderRef.id,
       subtotal,
-
       shipping,
-
       tax,
-
       codCharge,
-
       grossTotal,
-
       discountedTotal,
-
       couponId,
-
       couponCode,
-
       couponDiscount,
-
       walletBalance,
-
       walletUsed,
-
       finalPayable,
-
       razorpayOrderId,
-
       razorpayAmount,
-
       razorpayKey:
-        paymentMethod ===
-        "online"
-          ? process.env
-              .RAZORPAY_KEY_ID
-          : null,
+        paymentMethod === "online" ? process.env.RAZORPAY_KEY_ID : null,
     };
-  },
+  }
 );
 
 // =======================================================
@@ -914,7 +562,10 @@ export const finalizeOrder = onCall(
         throw new Error("Billing or Shipping missing");
       }
 
-      const isOnlinePayment = razorpayOrderId && razorpayPaymentId && razorpaySignature;
+      const isOnlinePayment =
+        razorpayOrderId && razorpayPaymentId && razorpaySignature;
+
+      const walletAmount = Number(data.walletAmount || 0);
 
       // ===================================================
       // 🔐 VERIFY PAYMENT
@@ -936,12 +587,14 @@ export const finalizeOrder = onCall(
       // ===================================================
       const couponId = data.couponId || null;
       const couponCode = data.couponCode || null;
-      const couponDiscount = Math.round(Number(data.couponDiscount || 0) * 100) / 100;
+      const couponDiscount =
+        Math.round(Number(data.couponDiscount || 0) * 100) / 100;
 
       const totals = await calculateCartTotals({
         uid,
         paymentMethod: isOnlinePayment ? "online" : "cod",
         useWallet,
+        walletAmount,
         couponDiscount,
       });
 
@@ -960,7 +613,7 @@ export const finalizeOrder = onCall(
         cartSnap,
       } = totals;
 
-      const rewardAmount = Math.round(subtotal * 0.20 * 100) / 100;
+      const rewardAmount = Math.round(subtotal * 0.2 * 100) / 100;
 
       // ===================================================
       // 🌐 CREATE WOO ORDER
@@ -1013,8 +666,14 @@ export const finalizeOrder = onCall(
       }
 
       // References for the transaction
-      const invoiceCounterRef = admin.firestore().collection("app_settings").doc("invoice_counter");
-      const orderRef = admin.firestore().collection("Orders").doc(String(wooOrderId));
+      const invoiceCounterRef = admin
+        .firestore()
+        .collection("app_settings")
+        .doc("invoice_counter");
+      const orderRef = admin
+        .firestore()
+        .collection("Orders")
+        .doc(String(wooOrderId));
 
       let invoiceNumber = "";
 
@@ -1024,13 +683,19 @@ export const finalizeOrder = onCall(
       await admin.firestore().runTransaction(async (transaction) => {
         // 1. READ: Get the current invoice counter state
         const counterSnap = await transaction.get(invoiceCounterRef);
-        const lastNumber = counterSnap.exists ? Number(counterSnap.data()?.lastNumber ?? 0) : 0;
+        const lastNumber = counterSnap.exists
+          ? Number(counterSnap.data()?.lastNumber ?? 0)
+          : 0;
         const nextNumber = lastNumber + 1;
-        
+
         invoiceNumber = `GLAD-16${nextNumber.toString().padStart(2, "0")}`;
 
         // 2. WRITE: Update invoice counter
-        transaction.set(invoiceCounterRef, { lastNumber: nextNumber }, { merge: true });
+        transaction.set(
+          invoiceCounterRef,
+          { lastNumber: nextNumber },
+          { merge: true }
+        );
 
         // 3. WRITE: Deduct Wallet if used
         if (walletUsed > 0) {
@@ -1072,6 +737,7 @@ export const finalizeOrder = onCall(
           rewardReleasedAt: null,
           referralRewardGivenTo: referrerUid,
           orderNumber: invoiceNumber, // Saved cleanly here
+          status: "processing",
           wooStatus: "processing",
           wooCreatedAt: admin.firestore.Timestamp.now(),
           wooUpdatedAt: admin.firestore.Timestamp.now(),
@@ -1082,20 +748,25 @@ export const finalizeOrder = onCall(
             email: userEmail,
           },
           statusHistory: [
-  {
-    status: "processing",
-    at: admin.firestore.Timestamp.now(),
-  },
-],
+            {
+              status: "processing",
+              at: admin.firestore.Timestamp.now(),
+            },
+          ],
           trackingNumber: null,
           trackingUrl: null,
           courierName: null,
           shippedAt: null,
           deliveredAt: null,
-          paymentCapturedAt: isOnlinePayment ? admin.firestore.Timestamp.now() : null,
+          paymentCapturedAt: isOnlinePayment
+            ? admin.firestore.Timestamp.now()
+            : null,
           referralRewardStatus: rewardAmount > 0 ? "pending" : "none",
           itemCount: cartSnap.docs.length,
-          totalQuantity: cartSnap.docs.reduce((sum, doc) => sum + Number(doc.data().quantity || 1), 0),
+          totalQuantity: cartSnap.docs.reduce(
+            (sum, doc) => sum + Number(doc.data().quantity || 1),
+            0
+          ),
           coupon: { id: couponId, code: couponCode, discount: couponDiscount },
           items: cartSnap.docs.map((doc) => {
             const item = doc.data();
@@ -1157,41 +828,37 @@ export const finalizeOrder = onCall(
       });
 
       // ===================================================
-// 📲 SEND ORDER CREATED WHATSAPP
-// ===================================================
+      // 📲 SEND ORDER CREATED WHATSAPP
+      // ===================================================
 
-// ===================================================
-// 📲 SEND ORDER CREATED WHATSAPP
-// ===================================================
+      try {
+        const paymentStatus = isOnlinePayment
+          ? "Paid Online"
+          : "Cash on Delivery";
 
-try {
-  const paymentStatus = isOnlinePayment
-    ? "Paid Online"
-    : "Cash on Delivery";
+        const savings = (
+          totals.productSavings +
+          couponDiscount +
+          walletUsed
+        ).toFixed(2);
 
-  const savings = (
-    totals.productSavings +
-    couponDiscount +
-    walletUsed
-  ).toFixed(2);
-
-  if (buyerData?.phoneNumber) {
-    await sendOrderCreatedMessage({
-      phone: buyerData.phoneNumber,
-      customerName:
-        `${billing.first_name || ""} ${billing.last_name || ""}`.trim(),
-      orderNumber: invoiceNumber,
-      paymentStatus,
-      savings,
-    });
-  } else {
-    console.warn(
-      `No phone number found for user ${uid}. Skipping WhatsApp notification.`
-    );
-  }
-} catch (e) {
-  console.error("WhatsApp Order Created Error:", e);
-}
+        if (buyerData?.phoneNumber) {
+          await sendOrderCreatedMessage({
+            phone: buyerData.phoneNumber,
+            customerName:
+              `${billing.first_name || ""} ${billing.last_name || ""}`.trim(),
+            orderNumber: invoiceNumber,
+            paymentStatus,
+            savings,
+          });
+        } else {
+          console.warn(
+            `No phone number found for user ${uid}. Skipping WhatsApp notification.`
+          );
+        }
+      } catch (e) {
+        console.error("WhatsApp Order Created Error:", e);
+      }
 
       return {
         success: true,
@@ -1208,507 +875,235 @@ try {
 // 🌐 WOO WEBHOOK
 // =======================================================
 
-export const wooOrderStatusWebhook =
-  onRequest(
-    {
-      cors: false,
-      maxInstances: 20,
-      secrets: [
-        "WOO_WEBHOOK_SECRET",
-      ],
-    },
+export const wooOrderStatusWebhook = onRequest(
+  {
+    cors: false,
+    maxInstances: 20,
+    secrets: ["WOO_WEBHOOK_SECRET"],
+  },
+  async (req, res) => {
+    console.log("🔥 WEBHOOK HIT");
+    console.log("Headers:", req.headers);
 
-    async (req, res) => {
+    if (req.rawBody) {
+      console.log("RawBody:", req.rawBody.toString());
+    }
 
-      console.log("🔥 WEBHOOK HIT");
-      console.log("Headers:", req.headers);
+    try {
+      // ===============================================
+      // 🔐 VERIFY SIGNATURE
+      // ===============================================
 
-      if (req.rawBody) {
-        console.log(
-          "RawBody:",
-          req.rawBody.toString()
-        );
+      const signature = req.headers["x-wc-webhook-signature"] as string;
+
+      console.log("Received Signature:", signature);
+
+      if (!signature) {
+        console.log("❌ Missing Signature");
+        res.status(401).send("Missing signature");
+        return;
       }
 
-      try {
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.WOO_WEBHOOK_SECRET!)
+        .update(req.rawBody)
+        .digest("base64");
 
-        // ===============================================
-        // 🔐 VERIFY SIGNATURE
-        // ===============================================
+      console.log("Secret Exists:", !!process.env.WOO_WEBHOOK_SECRET);
+      console.log("Expected Signature:", expectedSignature);
+      console.log("Signature Match:", signature === expectedSignature);
 
-        const signature =
-          req.headers[
-            "x-wc-webhook-signature"
-          ] as string;
+      if (signature !== expectedSignature) {
+        console.error("❌ Invalid WooCommerce Signature");
+        res.status(401).send("Invalid signature");
+        return;
+      }
 
-        console.log(
-          "Received Signature:",
-          signature
-        );
+      console.log("✅ Signature Verified");
 
-        if (!signature) {
+      // ===============================================
+      // 📦 ORDER DATA
+      // ===============================================
 
-          console.log(
-            "❌ Missing Signature"
-          );
+      const order = req.body;
 
-          res
-            .status(401)
-            .send("Missing signature");
+      console.log("Incoming Order:", order);
 
-          return;
-        }
+      if (!order?.id) {
+        console.log("❌ Missing Order ID");
+        res.status(400).send("Invalid payload");
+        return;
+      }
 
-        const expectedSignature =
-          crypto
-            .createHmac(
-              "sha256",
-              process.env
-                .WOO_WEBHOOK_SECRET!
-            )
-            .update(req.rawBody)
-            .digest("base64");
+      const wooOrderId = String(order.id);
+      const wooStatus = order.status;
 
-        console.log(
-          "Secret Exists:",
-          !!process.env.WOO_WEBHOOK_SECRET
-        );
+      console.log("📦 Woo Order ID:", wooOrderId);
+      console.log("📦 Woo Status:", wooStatus);
 
-        console.log(
-          "Expected Signature:",
-          expectedSignature
-        );
+      const orderRef = admin.firestore().collection("Orders").doc(wooOrderId);
 
-        console.log(
-          "Signature Match:",
-          signature === expectedSignature
-        );
+      console.log("🔍 Looking up Firestore order");
 
-        if (
-          signature !==
-          expectedSignature
-        ) {
+      const orderSnap = await orderRef.get();
 
-          console.error(
-            "❌ Invalid WooCommerce Signature"
-          );
+      console.log("Order Exists:", orderSnap.exists);
 
-          res
-            .status(401)
-            .send("Invalid signature");
+      if (!orderSnap.exists) {
+        console.log("❌ Order not found:", wooOrderId);
+        res.status(404).send("Order not found");
+        return;
+      }
 
-          return;
-        }
+      const orderData = orderSnap.data();
 
-        console.log(
-          "✅ Signature Verified"
-        );
+      console.log("📄 Order Data:", {
+        rewardAmount: orderData?.rewardAmount,
+        referralRewardGivenTo: orderData?.referralRewardGivenTo,
+        rewardReleased: orderData?.rewardReleased,
+      });
 
-        // ===============================================
-        // 📦 ORDER DATA
-        // ===============================================
+      await orderRef.update({
+  status: wooStatus,
+  wooStatus,
+  updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+});
 
-        const order = req.body;
+      console.log("✅ Order status updated");
 
-        console.log(
-          "Incoming Order:",
-          order
-        );
+      const rewardAmount = Number(orderData?.rewardAmount || 0);
+      const referrerUid = orderData?.referralRewardGivenTo;
 
-        if (!order?.id) {
+      console.log("🎁 Reward Amount:", rewardAmount);
+      console.log("👤 Referrer UID:", referrerUid);
+      console.log("REWARD CHECK", {
+        wooStatus,
+        rewardAmount,
+        referrerUid,
+        rewardReleased: orderData?.rewardReleased,
+      });
 
-          console.log(
-            "❌ Missing Order ID"
-          );
+      // ===============================================
+      // 🎁 RELEASE REFERRAL REWARD
+      // ===============================================
 
-          res
-            .status(400)
-            .send("Invalid payload");
+      if (wooStatus === "completed" && rewardAmount > 0 && referrerUid) {
+        console.log("🚀 ENTERING REWARD RELEASE BLOCK");
 
-          return;
-        }
+        let rewardActuallyCredited = false;
 
-        const wooOrderId =
-          String(order.id);
+        const referrerRef = admin
+          .firestore()
+          .collection("Users")
+          .doc(referrerUid);
 
-        const wooStatus =
-          order.status;
+        await admin.firestore().runTransaction(async (transaction) => {
+          console.log("🔄 Transaction Started");
 
-        console.log(
-          "📦 Woo Order ID:",
-          wooOrderId
-        );
+          const freshOrderSnap = await transaction.get(orderRef);
+          const freshOrderData = freshOrderSnap.data();
 
-        console.log(
-          "📦 Woo Status:",
-          wooStatus
-        );
+          console.log("Fresh Order Data:", {
+            rewardReleased: freshOrderData?.rewardReleased,
+          });
 
-        const orderRef =
-          admin
-            .firestore()
-            .collection("Orders")
-            .doc(wooOrderId);
-
-        console.log(
-          "🔍 Looking up Firestore order"
-        );
-
-        const orderSnap =
-          await orderRef.get();
-
-        console.log(
-          "Order Exists:",
-          orderSnap.exists
-        );
-
-        if (!orderSnap.exists) {
-
-          console.log(
-            "❌ Order not found:",
-            wooOrderId
-          );
-
-          res
-            .status(404)
-            .send("Order not found");
-
-          return;
-        }
-
-        const orderData =
-          orderSnap.data();
-
-        console.log(
-          "📄 Order Data:",
-          {
-            rewardAmount:
-              orderData?.rewardAmount,
-
-            referralRewardGivenTo:
-              orderData?.referralRewardGivenTo,
-
-            rewardReleased:
-              orderData?.rewardReleased,
+          if (!freshOrderData) {
+            console.log("❌ No fresh order data");
+            return;
           }
-        );
 
-        await orderRef.update({
-          status: wooStatus,
-          updatedAt:
-            admin.firestore
-              .FieldValue.serverTimestamp(),
+          if (freshOrderData.rewardReleased === true) {
+            console.log("⚠️ Reward already released");
+            return;
+          }
+
+          const referrerSnap = await transaction.get(referrerRef);
+
+          console.log("👤 Referrer Exists:", referrerSnap.exists);
+
+          if (!referrerSnap.exists) {
+            console.log("❌ Referrer not found");
+            return;
+          }
+
+          rewardActuallyCredited = true;
+
+          console.log("💰 Crediting Wallet", {
+            referrerUid,
+            rewardAmount,
+          });
+
+          transaction.update(referrerRef, {
+            walletBalance:
+              admin.firestore.FieldValue.increment(rewardAmount),
+            walletTotalEarned:
+              admin.firestore.FieldValue.increment(rewardAmount),
+          });
+
+          console.log("🔍 Looking for pending referral transaction");
+
+          const pendingTxQuery = await admin
+            .firestore()
+            .collection("Users")
+            .doc(referrerUid)
+            .collection("walletTransactions")
+            .where("source", "==", "referral_reward")
+            .where("orderId", "==", Number(wooOrderId))
+            .limit(1)
+            .get();
+
+          console.log("Pending Tx Found:", !pendingTxQuery.empty);
+
+          if (!pendingTxQuery.empty) {
+            transaction.update(pendingTxQuery.docs[0].ref, {
+              status: "credited",
+              creditedAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+
+            console.log("✅ Pending referral transaction updated");
+          }
+
+          console.log("✅ Marking reward released");
+
+          transaction.update(orderRef, {
+            rewardReleased: true,
+            rewardReleasedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
         });
 
-        console.log(
-          "✅ Order status updated"
-        );
+        console.log("🏁 Transaction Completed");
+        console.log("Reward Actually Credited:", rewardActuallyCredited);
 
-        const rewardAmount =
-          Number(
-            orderData?.rewardAmount || 0
-          );
-
-        const referrerUid =
-          orderData?.referralRewardGivenTo;
-
-        console.log(
-          "🎁 Reward Amount:",
-          rewardAmount
-        );
-
-        console.log(
-          "👤 Referrer UID:",
-          referrerUid
-        );
-
-        console.log(
-          "REWARD CHECK",
-          {
-            wooStatus,
-            rewardAmount,
-            referrerUid,
-            rewardReleased:
-              orderData?.rewardReleased,
-          }
-        );
-
-        // ===============================================
-        // 🎁 RELEASE REFERRAL REWARD
-        // ===============================================
-
-        if (
-          wooStatus === "completed" &&
-          rewardAmount > 0 &&
-          referrerUid
-        ) {
-
-          console.log(
-            "🚀 ENTERING REWARD RELEASE BLOCK"
-          );
-
-          let rewardActuallyCredited =
-            false;
-
-          const referrerRef =
-            admin
-              .firestore()
-              .collection("Users")
-              .doc(referrerUid);
-
-          await admin
-            .firestore()
-            .runTransaction(
-              async (
-                transaction
-              ) => {
-
-                console.log(
-                  "🔄 Transaction Started"
-                );
-
-                const freshOrderSnap =
-                  await transaction.get(
-                    orderRef
-                  );
-
-                const freshOrderData =
-                  freshOrderSnap.data();
-
-                console.log(
-                  "Fresh Order Data:",
-                  {
-                    rewardReleased:
-                      freshOrderData?.rewardReleased,
-                  }
-                );
-
-                if (
-                  !freshOrderData
-                ) {
-
-                  console.log(
-                    "❌ No fresh order data"
-                  );
-
-                  return;
-                }
-
-                if (
-                  freshOrderData
-                    .rewardReleased === true
-                ) {
-
-                  console.log(
-                    "⚠️ Reward already released"
-                  );
-
-                  return;
-                }
-
-                const referrerSnap =
-                  await transaction.get(
-                    referrerRef
-                  );
-
-                console.log(
-                  "👤 Referrer Exists:",
-                  referrerSnap.exists
-                );
-
-                if (
-                  !referrerSnap.exists
-                ) {
-
-                  console.log(
-                    "❌ Referrer not found"
-                  );
-
-                  return;
-                }
-
-                rewardActuallyCredited =
-                  true;
-
-                console.log(
-                  "💰 Crediting Wallet",
-                  {
-                    referrerUid,
-                    rewardAmount,
-                  }
-                );
-
-                transaction.update(
-                  referrerRef,
-                  {
-                    walletBalance:
-                      admin.firestore
-                        .FieldValue.increment(
-                          rewardAmount
-                        ),
-
-                    walletTotalEarned:
-                      admin.firestore
-                        .FieldValue.increment(
-                          rewardAmount
-                        ),
-                  }
-                );
-
-                console.log(
-                  "🔍 Looking for pending referral transaction"
-                );
-
-                const pendingTxQuery =
-                  await admin
-                    .firestore()
-                    .collection("Users")
-                    .doc(referrerUid)
-                    .collection(
-                      "walletTransactions"
-                    )
-                    .where(
-                      "source",
-                      "==",
-                      "referral_reward"
-                    )
-                    .where(
-                      "orderId",
-                      "==",
-                      Number(wooOrderId)
-                    )
-                    .limit(1)
-                    .get();
-
-                console.log(
-                  "Pending Tx Found:",
-                  !pendingTxQuery.empty
-                );
-
-                if (
-                  !pendingTxQuery.empty
-                ) {
-
-                  transaction.update(
-                    pendingTxQuery
-                      .docs[0]
-                      .ref,
-                    {
-                      status:
-                        "credited",
-
-                      creditedAt:
-                        admin.firestore
-                          .FieldValue.serverTimestamp(),
-                    }
-                  );
-
-                  console.log(
-                    "✅ Pending referral transaction updated"
-                  );
-                }
-
-                console.log(
-                  "✅ Marking reward released"
-                );
-
-                transaction.update(
-                  orderRef,
-                  {
-                    rewardReleased:
-                      true,
-
-                    rewardReleasedAt:
-                      admin.firestore
-                        .FieldValue.serverTimestamp(),
-                  }
-                );
-              }
-            );
-
-          console.log(
-            "🏁 Transaction Completed"
-          );
-
-          console.log(
-            "Reward Actually Credited:",
-            rewardActuallyCredited
-          );
-
-          if (
-            rewardActuallyCredited
-          ) {
-
-            console.log(
-              "📲 Sending Reward Push"
-            );
-
-            await sendRewardPush(
-              referrerUid,
-              rewardAmount,
-              wooOrderId
-            );
-
-            console.log(
-              "✅ Reward Push Sent"
-            );
-          }
-
-          console.log(
-            "🎉 Referral Reward Credited Successfully"
-          );
-
-          res
-            .status(200)
-            .send(
-              "Referral reward credited"
-            );
-
-          return;
+        if (rewardActuallyCredited) {
+          console.log("📲 Sending Reward Push");
+          await sendRewardPush(referrerUid, rewardAmount, wooOrderId);
+          console.log("✅ Reward Push Sent");
         }
 
-        console.log(
-          "ℹ️ Reward conditions not met"
-        );
+        console.log("🎉 Referral Reward Credited Successfully");
 
-        res
-          .status(200)
-          .send("OK");
-
-      } catch (e) {
-
-        console.error(
-          "❌ Webhook Error:",
-          e
-        );
-
-        res
-          .status(500)
-          .send("Error");
+        res.status(200).send("Referral reward credited");
+        return;
       }
+
+      console.log("ℹ️ Reward conditions not met");
+
+      res.status(200).send("OK");
+    } catch (e) {
+      console.error("❌ Webhook Error:", e);
+      res.status(500).send("Error");
     }
-  );
+  }
+);
 
-  async function sendRewardPush(
-  uid: string,
-  amount: number,
-  orderId: string,
-) {
-
-  const userSnap =
-    await admin
-      .firestore()
-      .collection("Users")
-      .doc(uid)
-      .get();
+async function sendRewardPush(uid: string, amount: number, orderId: string) {
+  const userSnap = await admin.firestore().collection("Users").doc(uid).get();
 
   if (!userSnap.exists) {
     return;
   }
 
-  const fcmToken =
-    userSnap.data()
-      ?.fcmToken;
+  const fcmToken = userSnap.data()?.fcmToken;
 
   if (!fcmToken) {
     return;
@@ -1717,55 +1112,29 @@ export const wooOrderStatusWebhook =
   await admin
     .messaging()
     .send({
-
-      token:
-        fcmToken,
-
+      token: fcmToken,
       notification: {
-
-        title:
-          "🎉 Reward Credited",
-
-        body:
-          `₹${amount} has been added to your wallet after successful delivery.`,
+        title: "🎉 Reward Credited",
+        body: `₹${amount} has been added to your wallet after successful delivery.`,
       },
-
       data: {
-
-        type:
-          "reward_credit",
-
-        orderId:
-          String(orderId),
-
-        amount:
-          String(amount),
+        type: "reward_credit",
+        orderId: String(orderId),
+        amount: String(amount),
       },
-
       android: {
-
-        priority:
-          "high",
+        priority: "high",
       },
-
       apns: {
-
         payload: {
-
           aps: {
-
-            sound:
-              "default",
+            sound: "default",
           },
         },
       },
     });
 
-  console.log(
-    "📲 Reward Push Sent:",
-    uid,
-    amount
-  );
+  console.log("📲 Reward Push Sent:", uid, amount);
 }
 
 // =======================================================
@@ -1777,28 +1146,20 @@ async function createWooOrder({
   cartSnap,
   subtotal,
   shipping,
-
   taxableBreakup,
   gstBreakup,
-
   tax,
-
   codCharge,
   walletUsed,
   finalPayable,
-
   paymentMethod,
-
   razorpayOrderId,
   razorpayPaymentId,
-
   billing,
   shippingAddress,
-
   couponCode,
   couponDiscount,
 }: any): Promise<any> {
-
   const lineItems: any[] = [];
 
   cartSnap.forEach((doc: any) => {
@@ -1810,25 +1171,25 @@ async function createWooOrder({
     });
   });
 
-  const   feeLines: any[] = [];
+  const feeLines: any[] = [];
 
   // ========================================
   // COUPON DISCOUNT
   // ========================================
 
-if (couponDiscount > 0) {
+  if (couponDiscount > 0) {
+    feeLines.push({
+      name: "Coupon Discount",
+      total: (-couponDiscount).toFixed(2),
+      tax_status: "none",
+    });
+  }
+
   feeLines.push({
-    name: "Coupon Discount",
-    total: (-couponDiscount).toFixed(2),
+    name: "Total Tax",
+    total: tax.toFixed(2),
     tax_status: "none",
   });
-}
-
-feeLines.push({
-  name: "Total Tax",
-  total: tax.toFixed(2),
-  tax_status: "none",
-});
 
   // ========================================
   // WALLET DISCOUNT
@@ -1846,13 +1207,13 @@ feeLines.push({
   // COD CHARGE
   // ========================================
 
-if (codCharge > 0) {
-  feeLines.push({
-    name: "Cash on Delivery Charges",
-    total: codCharge.toFixed(2),
-    tax_status: "none",
-  });
-}
+  if (codCharge > 0) {
+    feeLines.push({
+      name: "Cash on Delivery Charges",
+      total: codCharge.toFixed(2),
+      tax_status: "none",
+    });
+  }
 
   // ========================================
   // CREATE ORDER
@@ -1860,27 +1221,14 @@ if (codCharge > 0) {
 
   const body = {
     prices_include_tax: false,
-    payment_method:
-      paymentMethod === "online"
-        ? "razorpay"
-        : "cod",
-
+    payment_method: paymentMethod === "online" ? "razorpay" : "cod",
     payment_method_title:
-      paymentMethod === "online"
-        ? "Razorpay"
-        : "Cash on Delivery",
-
-    set_paid:
-      paymentMethod === "online",
-
+      paymentMethod === "online" ? "Razorpay" : "Cash on Delivery",
+    set_paid: paymentMethod === "online",
     status: "processing",
-
     billing,
-
     shipping: shippingAddress,
-
     line_items: lineItems,
-
     shipping_lines: [
       {
         method_title: "Standard Shipping",
@@ -1897,7 +1245,6 @@ if (codCharge > 0) {
     fee_lines: feeLines,
 
     meta_data: [
-
       // ------------------------------------
       // USER
       // ------------------------------------
@@ -1906,29 +1253,25 @@ if (codCharge > 0) {
         key: "app_uid",
         value: uid,
       },
-
       {
-    key: "created_by_app",
-    value: "yes",
-  },
+        key: "created_by_app",
+        value: "yes",
+      },
 
       // ------------------------------------
       // TAX BREAKDOWN
       // ------------------------------------
 
-      ...Object.entries(gstBreakup).map(
-  ([rate, amount]) => ({
-    key: `gst_${rate}`,
-    value: Number(amount).toFixed(2),
-  })
-),
+      ...Object.entries(gstBreakup).map(([rate, amount]) => ({
+        key: `gst_${rate}`,
+        value: Number(amount).toFixed(2),
+      })),
 
-...Object.entries(taxableBreakup).map(
-  ([rate, amount]) => ({
-    key: `taxable_${rate}`,
-    value: Number(amount).toFixed(2),
-  })
-),
+      ...Object.entries(taxableBreakup).map(([rate, amount]) => ({
+        key: `taxable_${rate}`,
+        value: Number(amount).toFixed(2),
+      })),
+
       {
         key: "tax_total",
         value: tax.toFixed(2),
@@ -1942,12 +1285,10 @@ if (codCharge > 0) {
         key: "coupon_code",
         value: couponCode || "",
       },
-
       {
         key: "coupon_discount",
         value: couponDiscount,
       },
-
       {
         key: "wallet_used",
         value: walletUsed,
@@ -1970,7 +1311,6 @@ if (codCharge > 0) {
         key: "razorpay_order_id",
         value: razorpayOrderId || "",
       },
-
       {
         key: "razorpay_payment_id",
         value: razorpayPaymentId || "",
@@ -1984,12 +1324,10 @@ if (codCharge > 0) {
         key: "app_subtotal",
         value: subtotal.toFixed(2),
       },
-
       {
         key: "app_shipping",
         value: shipping.toFixed(2),
       },
-
       {
         key: "app_final_payable",
         value: finalPayable.toFixed(2),
@@ -1997,19 +1335,15 @@ if (codCharge > 0) {
     ],
   };
 
-  console.log(
-
-  JSON.stringify(body, null, 2)
-
-);
+  console.log(JSON.stringify(body, null, 2));
 
   const response = await axios.post(
     "https://store.gladskin.in/wp-json/wc/v3/orders",
     body,
     {
       auth: {
-        username:"ck_1f90c93d45a4593f00f89ba5c942001e13898e09",
-        password:"cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392",
+        username: "ck_1f90c93d45a4593f00f89ba5c942001e13898e09",
+        password: "cs_1c4ddd44c08c3399ecbca3e6e16f1234274ae392",
       },
     }
   );

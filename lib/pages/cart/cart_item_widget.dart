@@ -125,15 +125,7 @@ final double totalSavings =
 
     if (quantity > 1)
       Text(
-<<<<<<< Updated upstream
-        "${quantity} × ₹${displaySale.toStringAsFixed(0)}",
-=======
-<<<<<<< HEAD
-        "${quantity} × ₹${displaySale.toStringAsFixed(0)}",
-=======
         "$quantity × ₹${salePrice.toStringAsFixed(0)}",
->>>>>>> 6bca2acfc6690b5fc89517fa78b898729d80fbf3
->>>>>>> Stashed changes
         style: TextStyle(
           fontSize: 12,
           color: Colors.grey.shade600,
@@ -207,11 +199,7 @@ final double totalSavings =
     ),
     boxShadow: [
       BoxShadow(
-<<<<<<< Updated upstream
-        color: Colors.black.withOpacity(0.04),
-=======
         color: Colors.black.withValues(alpha: 0.04),
->>>>>>> Stashed changes
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),

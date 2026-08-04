@@ -170,7 +170,7 @@ for (final doc in txSnapshot.data!.docs) {
             const SizedBox(height: 15),
 
             Text(
-              "₹${confirmedAmount.toStringAsFixed(2)}",
+              "${confirmedAmount.toStringAsFixed(2)}",
               style: GoogleFonts.lora(
                 color: Colors.white,
                 fontSize: 46,
@@ -201,11 +201,7 @@ for (final doc in txSnapshot.data!.docs) {
       vertical: 8,
     ),
     decoration: BoxDecoration(
-<<<<<<< Updated upstream
-      color: Colors.white.withOpacity(0.15),
-=======
       color: Colors.white.withValues(alpha: 0.15),
->>>>>>> Stashed changes
       borderRadius: BorderRadius.circular(30),
     ),
     child: Text(
@@ -232,11 +228,7 @@ for (final doc in txSnapshot.data!.docs) {
                   decoration:
                       BoxDecoration(
                     color: Colors.white
-<<<<<<< Updated upstream
-                        .withOpacity(0.15),
-=======
                         .withValues(alpha: 0.15),
->>>>>>> Stashed changes
                     borderRadius:
                         BorderRadius
                             .circular(30),
@@ -815,11 +807,7 @@ final statusColor =
         decoration: BoxDecoration(
           color: const Color(
             0xFF6F0562,
-<<<<<<< Updated upstream
-          ).withOpacity(0.08),
-=======
           ).withValues(alpha: 0.08),
->>>>>>> Stashed changes
           borderRadius:
               BorderRadius.circular(14),
         ),
@@ -905,11 +893,7 @@ final statusColor =
             decoration:
                 BoxDecoration(
               color: statusColor
-<<<<<<< Updated upstream
-                  .withOpacity(0.10),
-=======
                   .withValues(alpha: 0.10),
->>>>>>> Stashed changes
               borderRadius:
                   BorderRadius.circular(
                       30),

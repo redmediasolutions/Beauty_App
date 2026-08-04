@@ -345,11 +345,7 @@ if (categories.isNotEmpty) {
             ? CachedNetworkImage(
                 imageUrl: cat.image,
                 fit: BoxFit.cover,
-<<<<<<< Updated upstream
-                placeholder: (_, __) => const Center(
-=======
                 placeholder: (_, _) => const Center(
->>>>>>> Stashed changes
                   child: SizedBox(
                     width: 18,
                     height: 18,
@@ -358,11 +354,7 @@ if (categories.isNotEmpty) {
                     ),
                   ),
                 ),
-<<<<<<< Updated upstream
-                errorWidget: (_, __, ___) =>
-=======
                 errorWidget: (_, _, _) =>
->>>>>>> Stashed changes
                     const Icon(Icons.category),
               )
             : const Icon(Icons.category),
@@ -441,11 +433,7 @@ if (categories.isNotEmpty) {
                                             ? [
                                                 BoxShadow(
                                                   color: Colors.black
-<<<<<<< Updated upstream
-                                                      .withOpacity(0.05),
-=======
                                                       .withValues(alpha: 0.05),
->>>>>>> Stashed changes
                                                   blurRadius: 8,
                                                   offset: const Offset(0, 3),
                                                 ),
@@ -484,11 +472,7 @@ if (categories.isNotEmpty) {
         ? CachedNetworkImage(
             imageUrl: sub.image,
             fit: BoxFit.cover,
-<<<<<<< Updated upstream
-            placeholder: (_, __) =>
-=======
             placeholder: (_, _) =>
->>>>>>> Stashed changes
                 const Center(
                   child: SizedBox(
                     width: 16,
@@ -498,11 +482,7 @@ if (categories.isNotEmpty) {
                     ),
                   ),
                 ),
-<<<<<<< Updated upstream
-            errorWidget: (_, __, ___) =>
-=======
             errorWidget: (_, _, _) =>
->>>>>>> Stashed changes
                 const Icon(
                   Icons.category,
                   size: 20,

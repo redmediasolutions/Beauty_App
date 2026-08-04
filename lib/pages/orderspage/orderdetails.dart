@@ -191,13 +191,8 @@ debugPrint(order.toString());
 
           decoration: BoxDecoration(
             color:
-<<<<<<< Updated upstream
-                Colors.white.withOpacity(
-              0.15,
-=======
                 Colors.white.withValues(
               alpha: 0.15,
->>>>>>> Stashed changes
             ),
             borderRadius:
                 BorderRadius.circular(30),
@@ -244,13 +239,8 @@ Widget _card({
       boxShadow: [
         BoxShadow(
           color:
-<<<<<<< Updated upstream
-              Colors.black.withOpacity(
-            0.03,
-=======
               Colors.black.withValues(
             alpha: 0.03,
->>>>>>> Stashed changes
           ),
           blurRadius: 12,
           offset: const Offset(0, 4),

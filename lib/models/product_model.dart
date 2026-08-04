@@ -4,6 +4,8 @@ class Productsmodel {
 
   final String name;
 
+  final String slug;
+
   final String? brand;
 
   final String? image;
@@ -46,6 +48,7 @@ class Productsmodel {
   Productsmodel({
     required this.id,
     required this.name,
+    required this.slug,
     this.brand,
     this.image,
     required this.galleryImages,
@@ -92,6 +95,8 @@ class Productsmodel {
                 ?.toString() ??
             json['composition']
                 ?.toString();
+
+    
 
     String? packageValue =
         json['package_meta']
@@ -256,6 +261,13 @@ class Productsmodel {
         'https://img.freepik.com/free-photo/cosmetic-male-beauty-products-with-display_23-2150435210.jpg?semt=ais_hybrid&w=740&q=80',
       );
     }
+
+    // =====================================
+// SLUG
+// =====================================
+
+final String slug =
+    json['slug']?.toString() ?? '';
 
     // =====================================
     // CATEGORIES
@@ -439,6 +451,9 @@ for (final item in metaData) {
 
       sideeeffects:
           sideffects,
+
+    slug: slug,
+
 
       working:
           howdoesitwork,

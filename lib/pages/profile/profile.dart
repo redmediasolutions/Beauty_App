@@ -36,10 +36,14 @@ class Profile extends StatelessWidget {
                         ),
 
                 const SizedBox(height: 20),
-                ProfileHeader(),
+                GestureDetector(
+                  onTap: () => context.push('/loyalty'),
+                  child: ProfileHeader()),
                 //================Active Routine====================
                 const SizedBox(height: 35),
-                ActiveRoutiencard(),
+                GestureDetector(
+                  onTap: () => context.push('/cart'),
+                  child: ActiveRoutiencard()),
               //=================Order History======================
                 const SizedBox(height: 30),
                 //OrderList(),

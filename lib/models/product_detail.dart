@@ -8,6 +8,10 @@ class ProductDetail {
 
   final String name;
 
+  final String slug;
+
+  final int menuOrder;
+
   /// EXTRA DETAILS
   final String manufacturer;
 
@@ -72,6 +76,8 @@ final double taxRate;
     required this.price,
     this.salePrice,
     required this.relatedProductIds,
+    required this.slug,
+    required this.menuOrder,
 
     /// ✅ ADD THIS
     this.relatedProducts = const [],
@@ -140,6 +146,16 @@ required this.taxRate,
                 ?.toString() ??
             '';
 
+    final String slug =
+    json['slug']?.toString() ?? '';
+
+    final int menuOrder =
+        json['menu_order'] is int
+            ? json['menu_order']
+            : int.tryParse(
+                  json['menu_order']?.toString() ?? '',
+              ) ??
+              0;
     // =====================================
     // IMAGES
     // =====================================
@@ -558,6 +574,10 @@ for (final item in metaData) {
           json['name']
                   ?.toString() ??
               '',
+
+      slug: slug,
+
+      menuOrder: menuOrder,
 
       manufacturer:
           manufacturer,

@@ -24,11 +24,7 @@ Widget buildChargeProgressCard({
     decoration: BoxDecoration(
       color: const Color(0xFFF9F2F8),
       borderRadius: BorderRadius.circular(14),
-<<<<<<< Updated upstream
-      border: Border.all(color: purple.withOpacity(0.22)),
-=======
       border: Border.all(color: purple.withValues(alpha: 0.22)),
->>>>>>> Stashed changes
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

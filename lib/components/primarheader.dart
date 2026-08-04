@@ -14,20 +14,52 @@ class PrimaryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+
+    // Pages that should always show a back button.
+    final forceBackButton =
+        location.startsWith('/products/') ||
+        location.startsWith('/product/');
+
+    final canPop = Navigator.of(context).canPop();
+    final showBackButton = canPop || forceBackButton;
+
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: false,
-        title: SvgPicture.asset('assets/images/app-header.svg', height: 24),
+
+        leading: showBackButton
+            ? IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: Colors.black,
+                ),
+                onPressed: () {
+                  if (canPop) {
+                    context.pop();
+                  } else {
+                    // Deep-link fallback
+                    context.go('/');
+                    // or context.go('/collection');
+                  }
+                },
+              )
+            : null,
+
+        title: SvgPicture.asset(
+          'assets/images/app-header.svg',
+          height: 24,
+        ),
+
         actions: [
-          /// 👤 PROFILE BUTTON
           Padding(
             padding: const EdgeInsets.only(right: 5),
             child: IconButton(
               onPressed: () {
-                context.go('/profile'); // using go_router (recommended)
+                context.go('/profile');
               },
               icon: const Icon(
                 Icons.person_outline,

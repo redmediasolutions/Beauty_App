@@ -50,17 +50,10 @@ class OfferCardWidget extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-<<<<<<< Updated upstream
-              color: const Color(0xFF6F0562).withOpacity(0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFF6F0562).withOpacity(0.15),
-=======
               color: const Color(0xFF6F0562).withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: const Color(0xFF6F0562).withValues(alpha: 0.15),
->>>>>>> Stashed changes
                 width: 1,
               ),
             ),
@@ -70,11 +63,7 @@ class OfferCardWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-<<<<<<< Updated upstream
-                    color: const Color(0xFF6F0562).withOpacity(0.1),
-=======
                     color: const Color(0xFF6F0562).withValues(alpha: 0.1),
->>>>>>> Stashed changes
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -162,11 +151,7 @@ class OfferCardWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-<<<<<<< Updated upstream
-                    color: const Color(0xFF6F0562).withOpacity(0.1),
-=======
                     color: const Color(0xFF6F0562).withValues(alpha: 0.1),
->>>>>>> Stashed changes
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -730,11 +715,7 @@ class OfferCardWidget extends StatelessWidget {
         border: Border.all(
           color: isSelected 
               ? const Color(0xFF6F0562) 
-<<<<<<< Updated upstream
-              : (isSuggested ? const Color(0xFF6F0562).withOpacity(0.3) : Colors.transparent),
-=======
               : (isSuggested ? const Color(0xFF6F0562).withValues(alpha: 0.3) : Colors.transparent),
->>>>>>> Stashed changes
           width: 2,
         ),
       ),
@@ -762,11 +743,7 @@ class OfferCardWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-<<<<<<< Updated upstream
-                    color: coupon.autoSuggest ? const Color(0xFF6F0562).withOpacity(0.1) : Colors.amber.shade100,
-=======
                     color: coupon.autoSuggest ? const Color(0xFF6F0562).withValues(alpha: 0.1) : Colors.amber.shade100,
->>>>>>> Stashed changes
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: coupon.autoSuggest ? const Color(0xFF6F0562) : Colors.amber.shade700, 

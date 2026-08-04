@@ -38,12 +38,15 @@ class CartRepository {
 Future<Map<String, dynamic>> createSecureOrder({
   required String paymentMethod,
   required bool useWallet,
+  double walletAmount = 0,
   String? couponId,
   String? couponCode,
   double couponDiscount = 0,
 }) async {
-
   debugPrint("===== CREATE ORDER REQUEST =====");
+  debugPrint("paymentMethod=$paymentMethod");
+  debugPrint("useWallet=$useWallet");
+  debugPrint("walletAmount=$walletAmount");
   debugPrint("couponId=$couponId");
   debugPrint("couponCode=$couponCode");
   debugPrint("couponDiscount=$couponDiscount");
@@ -52,21 +55,15 @@ Future<Map<String, dynamic>> createSecureOrder({
   final result = await functions
       .httpsCallable('createSecureOrder')
       .call({
+        'paymentMethod': paymentMethod,
+        'useWallet': useWallet,
+        'walletAmount': walletAmount,
+        'couponId': couponId,
+        'couponCode': couponCode,
+        'couponDiscount': couponDiscount,
+      });
 
-    'paymentMethod': paymentMethod,
-
-    'useWallet': useWallet,
-
-    'couponId': couponId,
-
-    'couponCode': couponCode,
-
-    'couponDiscount': couponDiscount,
-  });
-
-  return Map<String, dynamic>.from(
-    result.data,
-  );
+  return Map<String, dynamic>.from(result.data);
 }
 
   /// ======================================================
@@ -78,51 +75,34 @@ Future<Map<String, dynamic>> finalizeOrder({
   required String? razorpayPaymentId,
   required String? razorpaySignature,
   required bool useWallet,
+  required double walletAmount,
   required Map<String, dynamic> billing,
   required Map<String, dynamic> shipping,
 
-  // ✅ ADD THESE
+  // Coupon
   required String? couponId,
   required String? couponCode,
   required double couponDiscount,
 }) async {
-
   final result = await functions
       .httpsCallable('finalizeOrder')
       .call({
+        'razorpayOrderId': razorpayOrderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpaySignature': razorpaySignature,
 
-    'razorpayOrderId':
-        razorpayOrderId,
+        'useWallet': useWallet,
+        'walletAmount': walletAmount,
 
-    'razorpayPaymentId':
-        razorpayPaymentId,
+        'billing': billing,
+        'shipping': shipping,
 
-    'razorpaySignature':
-        razorpaySignature,
+        'couponId': couponId,
+        'couponCode': couponCode,
+        'couponDiscount': couponDiscount,
+      });
 
-    'useWallet':
-        useWallet,
-
-    'billing':
-        billing,
-
-    'shipping':
-        shipping,
-
-    // ✅ PASS COUPON DATA
-    'couponId':
-        couponId,
-
-    'couponCode':
-        couponCode,
-
-    'couponDiscount':
-        couponDiscount,
-  });
-
-  return Map<String, dynamic>.from(
-    result.data,
-  );
+  return Map<String, dynamic>.from(result.data);
 }
 
   /// ======================================================

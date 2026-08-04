@@ -143,11 +143,7 @@ child: CachedNetworkImage(
       imageUrl: fallbackImage,
       fit: BoxFit.contain,
 
-<<<<<<< Updated upstream
-      errorWidget: (_, __, ___) {
-=======
       errorWidget: (_, _, _) {
->>>>>>> Stashed changes
         return Container(
           color: Colors.grey[100],
           child: const Center(

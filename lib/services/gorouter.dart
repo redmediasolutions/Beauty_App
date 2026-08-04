@@ -92,6 +92,23 @@ class AppRouter {
           return ProductsView(productId: id);
         },
       ),
+
+      GoRoute(
+  path: '/products/:slug',
+  pageBuilder: (context, state) {
+    debugPrint(
+      '🛣️ Route Builder: /products/${state.pathParameters['slug']}',
+    );
+
+    return MaterialPage(
+      key: state.pageKey,
+      child: ProductsView(
+        productSlug: state.pathParameters['slug']!,
+      ),
+    );
+  },
+),
+
       GoRoute(
   path: '/ordersuccess',
   name: 'ordersuccess',
@@ -163,6 +180,12 @@ GoRoute(
       /// 🎁 POINTS
       GoRoute(
         path: '/points',
+        builder: (context, state) => const LoyaltyPointsPage(),
+      ),
+
+       /// 🎁 POINTS
+      GoRoute(
+        path: '/loyalty',
         builder: (context, state) => const LoyaltyPointsPage(),
       ),
 

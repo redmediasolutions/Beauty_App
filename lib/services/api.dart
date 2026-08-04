@@ -111,11 +111,24 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
 
 //======================= FETCH SINGLE PRODUCT DETAIL FUNCTION =======================
 
-static Future<ProductDetail?> fetchSingleProductDetail(
-  String productId,
-) async {
-  final requestUrl =
-      "${Config.baseUrl}${Config.apiPath}${Config.productsURL}/$productId";
+static Future<ProductDetail?> fetchSingleProductDetail({
+  String? productId,
+  String? slug,
+}) async {
+  assert(
+    productId != null || slug != null,
+    'Either productId or slug must be provided.',
+  );
+
+  String requestUrl;
+
+  if (productId != null) {
+    requestUrl =
+        "${Config.baseUrl}${Config.apiPath}${Config.productsURL}/$productId";
+  } else {
+    requestUrl =
+        "${Config.baseUrl}${Config.apiPath}${Config.productsURL}?slug=${Uri.encodeComponent(slug!)}";
+  }
 
   try {
     final response = await client.get(
@@ -124,19 +137,42 @@ static Future<ProductDetail?> fetchSingleProductDetail(
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> json =
-          jsonDecode(response.body) as Map<String, dynamic>;
+      if (productId != null) {
+        // Fetch by ID returns a single object
+        final Map<String, dynamic> json =
+            jsonDecode(response.body) as Map<String, dynamic>;
 
-      // 🔥 PRINT COMPLETE PRODUCT PAYLOAD
-      debugPrint(
-        const JsonEncoder.withIndent('  ').convert(json),
-      );
+        debugPrint(
+          const JsonEncoder.withIndent('  ').convert(json),
+        );
 
-      if (!_isAllowedProduct(json)) {
-        return null;
+        if (!_isAllowedProduct(json)) {
+          return null;
+        }
+
+        return ProductDetail.fromJson(json);
+      } else {
+        // Fetch by slug returns an array
+        final List<dynamic> list =
+            jsonDecode(response.body) as List<dynamic>;
+
+        if (list.isEmpty) {
+          return null;
+        }
+
+        final Map<String, dynamic> json =
+            list.first as Map<String, dynamic>;
+
+        debugPrint(
+          const JsonEncoder.withIndent('  ').convert(json),
+        );
+
+        if (!_isAllowedProduct(json)) {
+          return null;
+        }
+
+        return ProductDetail.fromJson(json);
       }
-
-      return ProductDetail.fromJson(json);
     }
   } catch (e, stack) {
     debugPrint("Product fetch error: $e");
@@ -145,7 +181,6 @@ static Future<ProductDetail?> fetchSingleProductDetail(
 
   return null;
 }
-
 ///======================= FETCH PRODUCTS BY IDS FUNCTION =======================
 static Future<List<Productsmodel>> fetchProductsByIds(
   List<int> productIds,

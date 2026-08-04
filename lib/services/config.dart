@@ -9,11 +9,7 @@ class Config {
 
   // Base API URL
   static const String baseUrl = "https://store.gladskin.in";
-<<<<<<< Updated upstream
-  print(baseUrl) {
-=======
   void print(baseUrl) {
->>>>>>> Stashed changes
     // TODO: implement print
     throw UnimplementedError();
   }

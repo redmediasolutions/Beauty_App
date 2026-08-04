@@ -26,11 +26,7 @@ Widget build(BuildContext context) {
       ),
       boxShadow: [
         BoxShadow(
-<<<<<<< Updated upstream
-          color: Colors.black.withOpacity(0.03),
-=======
           color: Colors.black.withValues(alpha: 0.03),
->>>>>>> Stashed changes
           blurRadius: 12,
           offset: const Offset(0, 4),
         ),
@@ -45,11 +41,7 @@ Widget build(BuildContext context) {
           decoration: BoxDecoration(
             color: const Color(
               0xFF6F0562,
-<<<<<<< Updated upstream
-            ).withOpacity(0.08),
-=======
             ).withValues(alpha: 0.08),
->>>>>>> Stashed changes
             borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
@@ -121,11 +113,7 @@ Widget build(BuildContext context) {
               ),
               decoration: BoxDecoration(
                 color: Colors.green
-<<<<<<< Updated upstream
-                    .withOpacity(0.10),
-=======
                     .withValues(alpha: 0.10),
->>>>>>> Stashed changes
                 borderRadius:
                     BorderRadius.circular(30),
               ),
