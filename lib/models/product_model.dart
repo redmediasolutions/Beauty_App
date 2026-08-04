@@ -37,8 +37,6 @@ class Productsmodel {
 
   final bool canAddToCart;
 
-  final double taxRate;
-
   // =====================================
   // RELATED PRODUCTS
   // =====================================
@@ -61,7 +59,6 @@ class Productsmodel {
     required this.categoryIds,
     required this.isNotForSale,
     required this.canAddToCart,
-    required this.taxRate,
 
     // =====================================
     // RELATED PRODUCTS
@@ -397,40 +394,10 @@ final String slug =
             'instock';
 
     // =====================================
-// GST RATE FROM META
-// =====================================
-
-double taxRate = 18;
-
-final List<dynamic> metaData =
-    json['meta_data'] as List? ?? [];
-
-for (final item in metaData) {
-  final key = item['key']?.toString();
-
-  if (key == 'gst_rate') {
-    final parsedRate =
-        double.tryParse(
-              item['value']?.toString() ?? '',
-            ) ??
-            18;
-
-    taxRate =
-        parsedRate <= 0
-            ? 18
-            : parsedRate;
-
-    break;
-  }
-}
-
-    // =====================================
     // FINAL MODEL
     // =====================================
 
     return Productsmodel(
-
-      taxRate: taxRate,
 
       id: parsedId,
 

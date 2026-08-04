@@ -20,34 +20,13 @@ class HomeFeaturedProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // =====================================
-// GST INCLUSIVE PRICES
-// =====================================
+    final double mrp = product.regularPrice ?? 0;
+final double salePrice = product.salePrice ?? mrp;
 
-double withTax(double price) {
-  return price * (1 + product.taxRate / 100);
-}
-
-final double originalMrp =
-    product.regularPrice ?? 0;
-
-final double originalSale =
-    product.salePrice ?? originalMrp;
-
-// Prices including GST
-final double mrp =
-    withTax(originalMrp);
-
-final double salePrice =
-    withTax(originalSale);
-
-// Discount percentage should always be calculated
-// from the original prices (GST doesn't affect it)
 final int discountPercent =
-    originalMrp > originalSale && originalMrp > 0
-        ? (((originalMrp - originalSale) / originalMrp) * 100).round()
+    mrp > salePrice && mrp > 0
+        ? (((mrp - salePrice) / mrp) * 100).round()
         : 0;
-
     return GestureDetector(
       onTap: () => context.push('/product/${product.id}'),
       child: SizedBox(

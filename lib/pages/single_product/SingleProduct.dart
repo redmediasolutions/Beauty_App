@@ -11,7 +11,6 @@ import 'package:glowfit/components/products_List.dart';
 import 'package:glowfit/models/product_detail.dart';
 import 'package:glowfit/models/product_model.dart';
 import 'package:glowfit/models/producthighlight.dart';
-import 'package:glowfit/pages/single_product/pagescroll_trigger.dart';
 import 'package:glowfit/services/api.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -213,10 +212,6 @@ print("================================");
       }
     }
   }
-
-  double priceIncludingTax(double price, double taxRate) {
-  return price + (price * taxRate / 100);
-}
 
   @override
   void dispose() {
@@ -679,16 +674,10 @@ print("================================");
   Widget _productdetails(BuildContext context, ProductDetail p) {
     // Calculate savings
 
-    final double taxRate = p.taxRate;
+    final double mrp = p.price;
 
-final double mrp =
-    priceIncludingTax(p.price, taxRate);
+    final double salePrice = p.salePrice ?? p.price;
 
-final double salePrice =
-    priceIncludingTax(
-      p.salePrice ?? p.price,
-      taxRate,
-    );
     final double savingsPercent = mrp > 0 ? ((mrp - salePrice) / mrp) * 100 : 0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
@@ -800,18 +789,6 @@ final double salePrice =
               ),
             ),
           ],
-          const SizedBox(height: 20),
-          Text(
-              "Prices inclusive of GST",
-
-              style: GoogleFonts.manrope(
-                fontSize: 13,
-
-                fontWeight: FontWeight.w600,
-
-                color: const Color.fromARGB(255, 154, 154, 154),
-              ),
-            ),
           const SizedBox(height: 20),
         ],
       ),

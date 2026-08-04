@@ -14,16 +14,12 @@ class RecommendedSection extends StatelessWidget {
     return price.toStringAsFixed(0);
   }
 
-  double _priceWithTax(double price, double taxRate) {
-  return price * (1 + taxRate / 100);
-}
-
   String _stripHtml(String input) {
     final clean = input.replaceAll(RegExp(r'<[^>]*>|&[^;]+;'), ' ');
     return clean.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
-String _savingsAmount(Productsmodel product) {
+  String _savingsAmount(Productsmodel product) {
   final mrp = product.regularPrice ?? 0;
   final sale = product.salePrice ?? mrp;
 
@@ -203,33 +199,25 @@ const SizedBox(height: 14),
 Row(
   children: [
     Text(
-  "₹${_formatPrice(
-    _priceWithTax(
-      primary.salePrice ?? primary.regularPrice ?? 0,
-      primary.taxRate,
+      "₹${_formatPrice(primary.salePrice)}",
+      style: GoogleFonts.inter(
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFFB34E6F),
+      ),
     ),
-  )}",
-),
     if ((primary.regularPrice ?? 0) >
         (primary.salePrice ?? primary.regularPrice ?? 0))
       Padding(
         padding: const EdgeInsets.only(left: 8),
-        child: 
-        
-Text(
-  "₹${_formatPrice(
-    _priceWithTax(
-      primary.regularPrice ?? 0,
-      primary.taxRate,
-    ),
-  )}",
-  style: GoogleFonts.inter(
-    fontSize: 14,
-    color: Colors.grey,
-    decoration: TextDecoration.lineThrough,
-    decorationThickness: 2,
-  ),
-)
+        child: Text(
+          "₹${_formatPrice(primary.regularPrice)}",
+          style: GoogleFonts.inter(
+            fontSize: 14,
+            decoration: TextDecoration.lineThrough,
+            color: Colors.grey,
+          ),
+        ),
       ),
   ],
 ),
@@ -257,13 +245,8 @@ const SizedBox(height: 16),
                               ),
                             ),
                             child: Text(
-  "ADD TO ROUTINE - ₹${_formatPrice(
-    _priceWithTax(
-      primary.salePrice ?? primary.regularPrice ?? 0,
-      primary.taxRate,
-    ),
-  )}",
-),
+                              "ADD TO ROUTINE - ₹${_formatPrice(primary.salePrice)}",
+                            ),
                           ),
                         ],
                       ),
@@ -332,151 +315,115 @@ class _CompactRecommendationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double originalMrp = product.regularPrice ?? 0;
-final double originalSale =
-    product.salePrice ?? originalMrp;
-
-final double salePrice =
-    originalSale * (1 + product.taxRate / 100);
-
-final double mrp =
-    originalMrp * (1 + product.taxRate / 100);
-
-final bool hasDiscount =
-    originalMrp > originalSale;
-
-final int discountPercent =
-    hasDiscount
-        ? (((originalMrp - originalSale) /
-                originalMrp) *
-            100)
-            .round()
-        : 0;
-
-final double savings =
-    originalMrp - originalSale;
-
-return GestureDetector(
-  onTap: () {
-    context.push('/product/${product.id}');
-  },
-  child: Container(
-    padding: const EdgeInsets.all(12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            product.image ??
-                "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
-            height: 56,
-            width: 56,
-            fit: BoxFit.contain,
-          ),
+    return GestureDetector(
+       onTap: () {
+  context.push('/product/${product.id}');
+},
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  height: 1.3,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF2D2424),
-                ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                product.image ??
+                    "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=600&q=80",
+                height: 56,
+                width: 56,
+                fit: BoxFit.contain,
               ),
-
-              const SizedBox(height: 4),
-
-              Row(
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "₹${salePrice.toStringAsFixed(0)}",
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFB34E6F),
+                      fontSize: 12,
+                      height: 1.3,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF2D2424),
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Row(
+  children: [
+    Text(
+      "₹${product.salePrice?.toStringAsFixed(0) ?? product.regularPrice?.toStringAsFixed(0) ?? "--"}",
+      style: GoogleFonts.inter(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFFB34E6F),
+      ),
+    ),
 
-                  if (hasDiscount)
-                    Padding(
-                      padding:
-                          const EdgeInsets.only(left: 6),
-                      child: Text(
-                        "₹${mrp.toStringAsFixed(0)}",
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.grey,
-                          decoration:
-                              TextDecoration.lineThrough,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+    if ((product.regularPrice ?? 0) >
+        (product.salePrice ?? product.regularPrice ?? 0))
+      Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Text(
+          "₹${product.regularPrice!.toStringAsFixed(0)}",
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            decoration: TextDecoration.lineThrough,
+            color: Colors.grey,
+          ),
+        ),
+      ),
+  ],
+),
 
-              if (hasDiscount)
-                Padding(
-                  padding:
-                      const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFE94B7A),
-                          borderRadius:
-                              BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          "$discountPercent% OFF",
-                          style: GoogleFonts.inter(
-                            fontSize: 8,
-                            fontWeight:
-                                FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(width: 6),
-
-                      Text(
-                        "Save ₹${savings.toStringAsFixed(0)}",
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight:
-                              FontWeight.w600,
-                          color:
-                              const Color(0xFF2E7D32),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
+if ((product.regularPrice ?? 0) >
+    (product.salePrice ?? product.regularPrice ?? 0))
+  Padding(
+    padding: const EdgeInsets.only(top: 4),
+    child: Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 2,
+          ),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE94B7A),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            "${(((product.regularPrice! - product.salePrice!) / product.regularPrice!) * 100).round()}% OFF",
+            style: GoogleFonts.inter(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          "Save ₹${(product.regularPrice! - product.salePrice!).toStringAsFixed(0)}",
+          style: GoogleFonts.inter(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF2E7D32),
           ),
         ),
       ],
     ),
   ),
-);
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -504,11 +451,5 @@ class _RecommendedLoading extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-extension TaxExtension on num {
-  double withTax(double taxRate) {
-    return toDouble() * (1 + taxRate / 100);
   }
 }

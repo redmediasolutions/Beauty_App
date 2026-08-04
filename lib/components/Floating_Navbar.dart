@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:glowfit/models/product_detail.dart';
 import 'package:go_router/go_router.dart';
 
 class FloatingNavBar extends StatelessWidget {

@@ -2,17 +2,10 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import axios from "axios";
 import { Request, Response } from "express";
-import { sendWelcomeMessage } from "./whatsapp";
 
 // =======================================================
 // 📦 IMPORT CART FUNCTIONS
 // =======================================================
-
-// =======================================================
-// 🔥 INIT
-// =======================================================
-
-admin.initializeApp();
 
 export {
   getCartRates,
@@ -23,9 +16,12 @@ export {
 } from "./cartfunctions";
 
 export * from "./notificationfunctions";
-export * from "./ordertriggers";
 
+// =======================================================
+// 🔥 INIT
+// =======================================================
 
+admin.initializeApp();
 
 // =======================================================
 // 🔐 MSG91 CONFIG (GLADSKIN)
@@ -321,9 +317,6 @@ export const verifyGladskinOtp =
             },
             { merge: true }
           );
-
-            await sendWelcomeMessage(cleanPhone);
-
         } else {
           await userDocRef.update({
             updatedAt:
