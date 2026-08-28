@@ -15,6 +15,7 @@ import 'package:glowfit/pages/cart/offer_card_widget.dart';
 import 'package:glowfit/pages/cart/payment_tilewidget.dart';
 import 'package:glowfit/pages/cart/savingscard.dart';
 import 'package:glowfit/pages/cart/summary_row_widget.dart';
+import 'package:glowfit/services/api.dart';
 import 'package:glowfit/services/firestoreservice.dart';
 import 'package:go_router/go_router.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
@@ -67,6 +68,8 @@ double _shippingThreshold = 499;
 double _shippingChargeBelowThreshold = 49;
 double _shippingChargeAboveThreshold = 0;
 
+bool _checkingStock = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +79,10 @@ double _shippingChargeAboveThreshold = 0;
     _loadAvailableCoupons();
     _loadFreeGiftSettings();
     _loadCheckoutSettings();   // Load COD settings
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+  _checkCartStock();
+});
   }
 
   @override
@@ -84,6 +91,90 @@ double _shippingChargeAboveThreshold = 0;
     _scrollController.dispose();
     super.dispose();
   }
+
+
+
+
+Future<void> _checkCartStock() async {
+  if (_checkingStock) return;
+
+  _checkingStock = true;
+
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final cartRef = FirebaseFirestore.instance
+        .collection("carts")
+        .doc(user.uid)
+        .collection("items");
+
+    final cartSnap = await cartRef.get();
+
+    if (cartSnap.docs.isEmpty) return;
+
+    final cartItems = cartSnap.docs.map((doc) {
+      final data = doc.data();
+
+      return {
+        "productId": data["productId"],
+        "quantity": data["quantity"],
+        "name": data["name"],
+        "docId": doc.id,
+      };
+    }).toList();
+
+    final stockResult = await APIService.checkProductsStock(
+      cartItems: cartItems,
+    );
+
+    if (!stockResult.hasOutOfStock || !mounted) return;
+
+    // Remove unavailable items
+    final batch = FirebaseFirestore.instance.batch();
+
+for (final item in stockResult.items) {
+  if (item.docId == null) continue;
+
+  debugPrint(
+    "Deleting cart item: ${item.name} | docId=${item.docId}",
+  );
+
+  batch.delete(cartRef.doc(item.docId!));
+}
+
+await batch.commit();
+
+    if (!mounted) return;
+
+    final removedItems = stockResult.items
+        .map((e) => "• ${e.name}")
+        .join("\n");
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Items Removed"),
+        content: Text(
+          "The following products are no longer available and have been removed from your cart:\n\n"
+          "$removedItems",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  } catch (e, stack) {
+    debugPrint("Stock check failed: $e");
+    debugPrint(stack.toString());
+  } finally {
+    _checkingStock = false;
+  }
+}
 
   Future<void> _loadFreeGiftSettings() async {
   try {
@@ -666,38 +757,105 @@ _shippingChargeAboveThreshold =
         context.push('/processing-order');
       }
 
-      // =========================================
-      // CALCULATE COUPON DISCOUNT SAFELY
-      // =========================================
-      double couponDiscountAmount = 0;
+// =========================================
+// LOAD CART ONCE
+// =========================================
 
-      if (selectedCoupon != null) {
-        final cartSnap = await FirebaseFirestore.instance
-            .collection('carts')
-            .doc(FirebaseAuth.instance.currentUser!.uid)
-            .collection('items')
-            .get();
+final cartRef = FirebaseFirestore.instance
+    .collection('carts')
+    .doc(FirebaseAuth.instance.currentUser!.uid)
+    .collection('items');
 
-        double subtotal = 0;
+final cartSnap = await cartRef.get();
 
-        for (final doc in cartSnap.docs) {
-          final data = doc.data();
-          subtotal +=
-              ((data['salePrice'] ?? 0).toDouble()) *
-              ((data['quantity'] ?? 1).toDouble());
-        }
+// =========================================
+// CHECK STOCK
+// =========================================
 
-        couponDiscountAmount = subtotal * (selectedCoupon!.discount / 100);
-        // ROUND TO 2 DECIMALS
-        couponDiscountAmount = double.parse(
-          couponDiscountAmount.toStringAsFixed(2),
-        );
-      }
+final cartItems = cartSnap.docs.map((doc) {
+  final data = doc.data();
+
+  return {
+    "productId": data["productId"],
+    "quantity": data["quantity"],
+    "name": data["name"],
+    "docId": doc.id,
+  };
+}).toList();
+
+final stockResult = await APIService.checkProductsStock(
+  cartItems: cartItems,
+);
+
+if (stockResult.hasOutOfStock) {
+  // Remove unavailable products
+  final batch = FirebaseFirestore.instance.batch();
+
+  for (final item in stockResult.items) {
+    batch.delete(cartRef.doc(item.docId));
+  }
+
+  await batch.commit();
+
+  if (mounted && context.canPop()) {
+    context.pop(); // Close processing screen
+  }
+
+  if (!mounted) return;
+
+  final removedItems = stockResult.items
+      .map((e) => "• ${e.name}")
+      .join("\n");
+
+  await showDialog(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text("Items Removed"),
+      content: Text(
+        "The following products are no longer available and have been removed from your cart:\n\n$removedItems",
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("OK"),
+        ),
+      ],
+    ),
+  );
+
+  return;
+}
+
+// =========================================
+// CALCULATE COUPON DISCOUNT
+// =========================================
+
+double couponDiscountAmount = 0;
+
+if (selectedCoupon != null) {
+  double subtotal = 0;
+
+  for (final doc in cartSnap.docs) {
+    final data = doc.data();
+
+    subtotal +=
+        ((data['salePrice'] ?? 0).toDouble()) *
+        ((data['quantity'] ?? 1).toDouble());
+  }
+
+  couponDiscountAmount =
+      double.parse(
+        (subtotal * (selectedCoupon!.discount / 100))
+            .toStringAsFixed(2),
+      );
+}
+
 debugPrint("========== COUPON DEBUG ==========");
 debugPrint("selectedCoupon=${selectedCoupon?.code}");
 debugPrint("discount=${selectedCoupon?.discount}");
 debugPrint("couponDiscountAmount=$couponDiscountAmount");
 debugPrint("=================================");
+
       // =========================================
       // CREATE ORDER
       // =========================================
@@ -1172,30 +1330,64 @@ _finalCheckoutTotal = double.parse(
                       final data = docs[index].data() as Map<String, dynamic>;
                       final docId = docs[index].id;
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 15),
-                        child: CartItemWidget(
-                          name: data['name'] ?? '',
-                          mrp: (data['mrp'] ?? 0).toDouble(),
-                          salePrice: (data['salePrice'] ?? data['mrp'] ?? 0)
-                              .toDouble(),
-                          imageUrl: data['image'] ?? '',
-                          quantity: data['quantity'] ?? 1,
-                          onIncrement: () async {
-                            await _repository.updateQty(docId: docId, delta: 1);
-                          },
-                          onDecrement: () async {
-                            await _repository.updateQty(
-                              docId: docId,
-                              delta: -1,
-                            );
-                          },
-                          onRemove: () async {
-                            await _repository.removeItem(docId);
-                          },
-                          taxRate: (data['taxRate'] as num?)?.toDouble() ?? 18,
-                        ),
-                      );
+                      final double baseMrp =
+    (data['mrp'] as num?)?.toDouble() ?? 0;
+
+final double baseSalePrice =
+    (data['salePrice'] as num?)?.toDouble() ?? baseMrp;
+
+final double taxRate =
+    (data['taxRate'] as num?)?.toDouble() ?? 0;
+
+// API/cart prices are EXCLUSIVE of GST.
+// Convert them to GST-inclusive prices for display.
+final double gstMultiplier =
+    1 + (taxRate / 100);
+
+final double mrpIncludingGst =
+    baseMrp * gstMultiplier;
+
+final double salePriceIncludingGst =
+    baseSalePrice * gstMultiplier;
+
+return Padding(
+  padding: const EdgeInsets.only(bottom: 15),
+  child: CartItemWidget(
+    name: data['name'] ?? '',
+
+    // DISPLAY GST-INCLUSIVE PRICE
+    mrp: mrpIncludingGst,
+
+    salePrice: salePriceIncludingGst,
+
+    imageUrl: data['image'] ?? '',
+
+    quantity:
+        (data['quantity'] as num?)?.toInt() ?? 1,
+
+    onIncrement: () async {
+      await _repository.updateQty(
+        docId: docId,
+        delta: 1,
+      );
+    },
+
+    onDecrement: () async {
+      await _repository.updateQty(
+        docId: docId,
+        delta: -1,
+      );
+    },
+
+    onRemove: () async {
+      await _repository.removeItem(docId);
+    },
+
+    // We are already displaying inclusive prices.
+    // CartItemWidget should NOT add GST again.
+    taxRate: 0,
+  ),
+);
                     },
                   ),
                   const SizedBox(height: 30),

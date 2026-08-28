@@ -137,13 +137,13 @@ GoRoute(
 ),
 
 GoRoute(
-  path: '/order/:id', // ✅ MUST match this format
+  path: '/order/:id',
   name: 'orderDetail',
   builder: (context, state) {
-    final id = state.pathParameters['id'];
+    final id = state.pathParameters['id']!;
 
     return OrderDetailWidget(
-      orderId: int.tryParse(id ?? ''),
+      orderId: id,
     );
   },
 ),

@@ -10,7 +10,7 @@ class CartItemWidget extends StatelessWidget {
   final VoidCallback onRemove;
 
   final double mrp;
-
+  final double taxRate;
   final double salePrice;
 
   const CartItemWidget({
@@ -23,6 +23,7 @@ class CartItemWidget extends StatelessWidget {
     required this.onRemove,
     required this.mrp,
     required this.salePrice,
+    required this.taxRate,
   });
 
   @override

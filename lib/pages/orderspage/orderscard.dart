@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 class OrderCard extends StatelessWidget {
-  final int orderId;
+  final String orderId;
   final String date;
   final String status;
   final Color statusColor;
@@ -13,6 +13,7 @@ class OrderCard extends StatelessWidget {
   final bool showTrack;
   final bool showReorder;
   final Icon odericon;
+  final onTap;
 
   const OrderCard({
     super.key,
@@ -27,6 +28,7 @@ class OrderCard extends StatelessWidget {
     this.showTrack = false,
     this.showReorder = false,
     required this.odericon,
+    required this.onTap,
   });
 
   static const Color primaryColor =
@@ -104,7 +106,7 @@ class OrderCard extends StatelessWidget {
 
                   children: [
                     Text(
-                      "Order #$orderId",
+                      "$orderId",
 
                       style:
                           const TextStyle(
@@ -260,13 +262,7 @@ class OrderCard extends StatelessWidget {
                     ),
 
                     onPressed: () {
-                      context.pushNamed(
-                        'orderDetail',
-                        pathParameters: {
-                          'id':
-                              orderId.toString(),
-                        },
-                      );
+                      onTap();
                     },
 
                     child: const Text(
@@ -283,74 +279,6 @@ class OrderCard extends StatelessWidget {
                   ),
                 ),
               ),
-
-              if (showTrack) ...[
-                const SizedBox(width: 10),
-
-                SizedBox(
-                  height: 50,
-
-                  child: OutlinedButton(
-                    style:
-                        OutlinedButton.styleFrom(
-                      foregroundColor:
-                          primaryColor,
-
-                      side: const BorderSide(
-                        color: primaryColor,
-                      ),
-
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
-                          30,
-                        ),
-                      ),
-                    ),
-
-                    onPressed: () {},
-
-                    child: const Text(
-                      "TRACK",
-                    ),
-                  ),
-                ),
-              ],
-
-              if (showReorder) ...[
-                const SizedBox(width: 10),
-
-                SizedBox(
-                  height: 50,
-
-                  child: OutlinedButton(
-                    style:
-                        OutlinedButton.styleFrom(
-                      foregroundColor:
-                          primaryColor,
-
-                      side: const BorderSide(
-                        color: primaryColor,
-                      ),
-
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
-                          30,
-                        ),
-                      ),
-                    ),
-
-                    onPressed: () {},
-
-                    child: const Text(
-                      "REORDER",
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ],

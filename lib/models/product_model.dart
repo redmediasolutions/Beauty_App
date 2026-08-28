@@ -1,5 +1,4 @@
 class Productsmodel {
-
   final int id;
 
   final String name;
@@ -26,16 +25,35 @@ class Productsmodel {
 
   final String? working;
 
+  // =====================================
+  // PRICING
+  // =====================================
 
   final double? regularPrice;
 
   final double? salePrice;
+
+  // =====================================
+  // TAX
+  // =====================================
+
+  final String taxClass;
+
+  final String taxStatus;
+
+  final double taxRate;
+
+  // =====================================
+  // CATEGORY / STOCK
+  // =====================================
 
   final List<int> categoryIds;
 
   final bool isNotForSale;
 
   final bool canAddToCart;
+
+  final int menuOrder;
 
   // =====================================
   // RELATED PRODUCTS
@@ -56,13 +74,17 @@ class Productsmodel {
     this.working,
     this.regularPrice,
     this.salePrice,
+
+    // TAX
+    this.taxClass = '',
+    this.taxStatus = 'taxable',
+    this.taxRate = 18,
+
     required this.categoryIds,
     required this.isNotForSale,
     required this.canAddToCart,
 
-    // =====================================
-    // RELATED PRODUCTS
-    // =====================================
+    this.menuOrder = 0,
 
     this.relatedProductIds = const [],
 
@@ -78,28 +100,20 @@ class Productsmodel {
   factory Productsmodel.fromJson(
     Map<String, dynamic> json,
   ) {
-
     String? sideffects;
 
     String? howdoesitwork;
 
     String? brandValue =
-        json['manufacturer']
-            ?.toString();
+        json['manufacturer']?.toString();
 
     String? compositionValue =
-        json['composition_meta']
-                ?.toString() ??
-            json['composition']
-                ?.toString();
-
-    
+        json['composition_meta']?.toString() ??
+        json['composition']?.toString();
 
     String? packageValue =
-        json['package_meta']
-                ?.toString() ??
-            json['package']
-                ?.toString();
+        json['package_meta']?.toString() ??
+        json['package']?.toString();
 
     // =====================================
     // BRANDS ARRAY
@@ -107,10 +121,8 @@ class Productsmodel {
 
     if (
       json['brands'] is List &&
-      (json['brands'] as List)
-          .isNotEmpty
+      (json['brands'] as List).isNotEmpty
     ) {
-
       final brandList =
           json['brands'] as List;
 
@@ -121,10 +133,8 @@ class Productsmodel {
         firstBrand is Map &&
         firstBrand['name'] != null
       ) {
-
         brandValue =
-            firstBrand['name']
-                .toString();
+            firstBrand['name'].toString();
       }
     }
 
@@ -132,72 +142,86 @@ class Productsmodel {
     // META DATA
     // =====================================
 
-    if (
-      json['meta_data'] is List
-    ) {
+    final List<dynamic> metaData =
+        json['meta_data'] is List
+            ? json['meta_data'] as List
+            : [];
 
-      for (
-        final item
-            in json['meta_data']
-      ) {
+    for (final item in metaData) {
+      if (item is Map) {
+        final key =
+            item['key']?.toString();
 
-        if (
-          item
-              is Map<String, dynamic>
-        ) {
+        final value =
+            item['value'];
 
-          final key =
-              item['key'];
+        switch (key) {
+          case 'side_effects':
+            sideffects =
+                _cleanHtml(value);
+            break;
 
-          final value =
-              item['value'];
+          case 'how_does_it_work':
+            howdoesitwork =
+                _cleanHtml(value);
+            break;
 
-          switch (key) {
+          case 'composition':
+            compositionValue ??=
+                _cleanHtml(value);
+            break;
 
-            case 'side_effects':
+          case 'package':
+          case 'packing':
+            packageValue ??=
+                _cleanHtml(value);
+            break;
 
-              sideffects =
-                  _cleanHtml(
-                value,
-              );
+          case 'manufacturer':
+            brandValue ??=
+                value?.toString();
+            break;
+        }
+      }
+    }
 
-              break;
+    // =====================================
+    // TAX
+    // =====================================
 
-            case 'how_does_it_work':
+    final String taxClass =
+        json['tax_class']?.toString() ?? '';
 
-              howdoesitwork =
-                  _cleanHtml(
-                value,
-              );
+    final String taxStatus =
+        json['tax_status']?.toString() ??
+        'taxable';
 
-              break;
+    // =====================================
+    // GST RATE
+    // =====================================
 
-            case 'composition':
+    double taxRate = 18;
 
-              compositionValue ??=
-                  _cleanHtml(
-                value,
-              );
+    for (final item in metaData) {
+      if (item is Map) {
+        final key =
+            item['key']?.toString();
 
-              break;
+        if (key == 'gst_rate') {
+          final parsedRate =
+              double.tryParse(
+                    item['value']
+                            ?.toString() ??
+                        '',
+                  ) ??
+                  18;
 
-            case 'package':
+          taxRate =
+              parsedRate <= 0
+                  ? 18
+                  : parsedRate;
 
-              packageValue ??=
-                  _cleanHtml(
-                value,
-              );
-
-              break;
-
-            case 'manufacturer':
-
-              brandValue ??=
-                  value
-                      ?.toString();
-
-              break;
-          }
+          break;
         }
       }
     }
@@ -206,43 +230,31 @@ class Productsmodel {
     // IMAGES
     // =====================================
 
-    List<String>
-        galleryImages = [];
+    List<String> galleryImages = [];
 
-    if (
-      json['images'] is List
-    ) {
-
+    if (json['images'] is List) {
       galleryImages =
           (json['images'] as List)
-              .map(
-        (img) {
+              .map((img) {
+                if (img is Map) {
+                  return img['src']
+                          ?.toString() ??
+                      '';
+                }
 
-          if (img is Map) {
-
-            return img['src']
-                    ?.toString() ??
-                '';
-          }
-
-          return img.toString();
-        },
-      ).where(
-        (url) =>
-            url.isNotEmpty,
-      ).toList();
-    }
-
-    else if (
-      json['image'] != null &&
-      json['image']
-          .toString()
-          .isNotEmpty
-    ) {
-
-      galleryImages.add(
+                return img.toString();
+              })
+              .where(
+                (url) => url.isNotEmpty,
+              )
+              .toList();
+    } else if (
+        json['image'] != null &&
         json['image']
-            .toString(),
+            .toString()
+            .isNotEmpty) {
+      galleryImages.add(
+        json['image'].toString(),
       );
     }
 
@@ -250,21 +262,18 @@ class Productsmodel {
     // FALLBACK IMAGE
     // =====================================
 
-    if (
-      galleryImages.isEmpty
-    ) {
-
+    if (galleryImages.isEmpty) {
       galleryImages.add(
         'https://img.freepik.com/free-photo/cosmetic-male-beauty-products-with-display_23-2150435210.jpg?semt=ais_hybrid&w=740&q=80',
       );
     }
 
     // =====================================
-// SLUG
-// =====================================
+    // SLUG
+    // =====================================
 
-final String slug =
-    json['slug']?.toString() ?? '';
+    final String slug =
+        json['slug']?.toString() ?? '';
 
     // =====================================
     // CATEGORIES
@@ -275,48 +284,32 @@ final String slug =
             ? json['categories']
             : [];
 
-    final List<int>
-        categoryIds =
-            categoriesList.map(
-      (e) {
-
-        if (e is Map) {
+    final List<int> categoryIds =
+        categoriesList.map((e) {
+          if (e is Map) {
+            return int.tryParse(
+                  e['id'].toString(),
+                ) ??
+                0;
+          }
 
           return int.tryParse(
-                e['id']
-                    .toString(),
+                e.toString(),
               ) ??
               0;
-        }
-
-        return int.tryParse(
-              e.toString(),
-            ) ??
-            0;
-      },
-    ).toList();
+        }).toList();
 
     String categoryName = '';
 
-    if (
-      categoriesList.isNotEmpty
-    ) {
-
-      if (
-        categoriesList.first
-            is Map
-      ) {
-
+    if (categoriesList.isNotEmpty) {
+      if (categoriesList.first is Map) {
         categoryName =
-            categoriesList.first[
-                    'name']
-                ?.toString() ??
-            '';
+            categoriesList.first['name']
+                    ?.toString() ??
+                '';
       } else {
-
         categoryName =
-            categoriesList.first
-                .toString();
+            categoriesList.first.toString();
       }
     }
 
@@ -324,22 +317,18 @@ final String slug =
     // RELATED PRODUCTS
     // =====================================
 
-    final List<int>
-        relatedProductIds =
-            (json['related_ids']
-                    as List?)
-                ?.map(
-      (e) {
+    final List<int> relatedProductIds =
+        (json['related_ids'] as List?)
+                ?.map((e) {
+                  if (e is int) {
+                    return e;
+                  }
 
-        if (e is int) {
-          return e;
-        }
-
-        return int.tryParse(
-          e.toString(),
-        );
-      },
-    ).whereType<int>()
+                  return int.tryParse(
+                    e.toString(),
+                  );
+                })
+                .whereType<int>()
                 .toList() ??
             [];
 
@@ -349,22 +338,22 @@ final String slug =
 
     final double? regularPrice =
         _parseDouble(
-      json['regular_price'] ??
-          json['regularPrice'] ??
-          json['mrp'] ??
-          json['price'],
-    );
+          json['regular_price'] ??
+              json['regularPrice'] ??
+              json['mrp'] ??
+              json['price'],
+        );
 
     double? salePrice =
         _parseDouble(
-      json['sale_price'] ??
-          json['salePrice'] ??
-          json['price'],
-    );
+          json['sale_price'] ??
+              json['salePrice'] ??
+              json['price'],
+        );
 
     // =====================================
     // FALLBACK:
-    // If sale price missing
+    // IF SALE PRICE MISSING
     // =====================================
 
     salePrice ??=
@@ -376,8 +365,7 @@ final String slug =
 
     final int parsedId =
         int.tryParse(
-              json['id']
-                      ?.toString() ??
+              json['id']?.toString() ??
                   json['objectID']
                       ?.toString() ??
                   '0',
@@ -389,27 +377,27 @@ final String slug =
     // =====================================
 
     final String stockStatus =
-        json['stock_status']
-                ?.toString() ??
-            'instock';
+        json['stock_status']?.toString() ??
+        'instock';
 
     // =====================================
     // FINAL MODEL
     // =====================================
 
     return Productsmodel(
-
       id: parsedId,
 
+      menuOrder:
+          (json['menu_order'] as num?)
+                  ?.toInt() ??
+              0,
+
       name:
-          json['name']
-                  ?.toString() ??
-              '',
+          json['name']?.toString() ?? '',
 
       description:
           _cleanHtml(
-                json[
-                    'description'],
+                json['description'],
               ) ??
               '',
 
@@ -419,8 +407,8 @@ final String slug =
       sideeeffects:
           sideffects,
 
-    slug: slug,
-
+      slug:
+          slug,
 
       working:
           howdoesitwork,
@@ -449,6 +437,23 @@ final String slug =
       salePrice:
           salePrice,
 
+      // ===================================
+      // TAX
+      // ===================================
+
+      taxClass:
+          taxClass,
+
+      taxStatus:
+          taxStatus,
+
+      taxRate:
+          taxRate,
+
+      // ===================================
+      // CATEGORY
+      // ===================================
+
       categoryIds:
           categoryIds,
 
@@ -456,17 +461,11 @@ final String slug =
           relatedProductIds,
 
       isNotForSale:
-          categoryIds.contains(
-        94,
-      ),
+          categoryIds.contains(94),
 
       canAddToCart:
-          stockStatus ==
-                  'instock' &&
-              !categoryIds
-                  .contains(
-                94,
-              ),
+          stockStatus == 'instock' &&
+          !categoryIds.contains(94),
     );
   }
 
@@ -477,17 +476,14 @@ final String slug =
   static double? _parseDouble(
     dynamic value,
   ) {
-
     if (
       value == null ||
       value == ''
     ) {
-
       return null;
     }
 
     if (value is num) {
-
       return value.toDouble();
     }
 
@@ -503,12 +499,10 @@ final String slug =
   static String? _cleanHtml(
     dynamic value,
   ) {
-
     if (
       value == null ||
       value == ''
     ) {
-
       return null;
     }
 

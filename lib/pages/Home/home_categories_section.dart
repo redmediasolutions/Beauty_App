@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:glowfit/models/categorymodel.dart';
 import 'package:glowfit/services/api.dart';
@@ -23,26 +24,39 @@ class _HomeCategoriesSectionState extends State<HomeCategoriesSection> {
   }
 
   Future<void> _loadCategories() async {
-    try {
-      final raw = RemoteConfigService.getProductCategories();
+  try {
+    final doc = await FirebaseFirestore.instance
+        .collection('app_settings')
+        .doc('categories')
+        .get();
 
-      final ids = raw
-          .split(',')
-          .map((e) => int.tryParse(e.trim()))
-          .where((e) => e != null)
-          .cast<int>()
-          .toList();
+    if (!doc.exists) return;
 
-      final result = await APIService.fetchCategoriesByIds(ids);
+    final data = doc.data()!;
+    final List items = data['items'] ?? [];
 
-      setState(() {
-        // Hide "All" category (ID 49)
-        _categories = result.where((category) => category.id != 49).toList();
-      });
-    } catch (e) {
-      debugPrint("❌ Home category error: $e");
-    }
+final categories = items
+    .where((e) => (e['isactive'] ?? false) == true)
+    .map(
+      (e) => CategoryModel(
+        id: e['id'] ?? 0,
+        name: e['name'] ?? '',
+        image: e['image'] ?? '',
+        parent: 0,
+      ),
+    )
+    .where((e) => e.id != 49)
+    .toList();
+
+    if (!mounted) return;
+
+    setState(() {
+      _categories = categories;
+    });
+  } catch (e) {
+    debugPrint("❌ Home category error: $e");
   }
+}
 
   @override
   Widget build(BuildContext context) {

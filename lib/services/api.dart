@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:glowfit/models/categorymodel.dart';
+import 'package:glowfit/models/checkstockresult.dart';
 import 'package:glowfit/models/product_detail.dart';
 import 'package:glowfit/models/product_model.dart';
 import 'package:glowfit/models/singleorder.dart';
@@ -27,11 +28,14 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
   int perPage = 10,
 }) async {
   final queryParams = {
-    'category': categoryId,
-    'page': page.toString(),
-    'per_page': perPage.toString(),
-    'status': 'publish',
-  };
+  'category': categoryId,
+  'page': page.toString(),
+  'per_page': perPage.toString(),
+  'status': 'publish',
+
+  'orderby': 'menu_order',
+  'order': 'asc',
+};
 
   final queryString = Uri(queryParameters: queryParams).query;
   final requestUrl =
@@ -45,6 +49,16 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
 
     if (response.statusCode == 200) {
       final List list = jsonDecode(response.body);
+
+debugPrint("============== API ORDER ==============");
+
+for (final p in list) {
+  debugPrint(
+    "${p['menu_order']} | ${p['id']} | ${p['name']}",
+  );
+}
+
+debugPrint("=======================================");
 
       /// ✅ FILTER: ONLY CATEGORY 41
      final filtered =
@@ -67,10 +81,12 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
   final queryParams = {
     'page': page.toString(),
     'per_page': perPage.toString(),
-    'orderby': 'date',
-    'order': 'desc',
-    if (search != null && search.isNotEmpty) 'search': search,
-    if (categoryId != null) 'category': categoryId.toString(),
+
+    if (search != null && search.isNotEmpty)
+      'search': search,
+
+    if (categoryId != null)
+      'category': categoryId.toString(),
   };
 
   final queryString = Uri(queryParameters: queryParams).query;
@@ -90,17 +106,41 @@ static Future<List<Productsmodel>> fetchProductsByCategory({
       debugPrint('🛍️ [API] fetchProducts → URL: $requestUrl');
       debugPrint('🛍️ [API] Raw count from API: ${list.length}');
 
-      // Skip the category-49 gate for subcategory fetches — WooCommerce products
-      // assigned only to a subcategory don't carry the parent category ID.
       final filtered = (categoryId == null || categoryId == 49)
           ? list.where((e) => _isAllowedProduct(e)).toList()
           : list;
 
       debugPrint('🛍️ [API] After filter: ${filtered.length}');
 
-      return filtered.map((e) => Productsmodel.fromJson(e)).toList();
+      final products =
+          filtered.map((e) => Productsmodel.fromJson(e)).toList();
+
+      // ==================================================
+      // SORT BY MENU ORDER
+      // 1,2,3... first
+      // 0 goes to the end
+      // ==================================================
+      products.sort((a, b) {
+        final orderA = a.menuOrder == 0 ? 999999 : a.menuOrder;
+        final orderB = b.menuOrder == 0 ? 999999 : b.menuOrder;
+
+        final compare = orderA.compareTo(orderB);
+
+        if (compare != 0) {
+          return compare;
+        }
+
+        // Stable ordering within same priority
+        return a.name.toLowerCase().compareTo(
+              b.name.toLowerCase(),
+            );
+      });
+
+      return products;
     } else {
-      debugPrint('❌ [API] fetchProducts failed: ${response.statusCode} → $requestUrl');
+      debugPrint(
+        '❌ [API] fetchProducts failed: ${response.statusCode} → $requestUrl',
+      );
     }
   } catch (e) {
     debugPrint('🚨 [API] fetchProducts exception: $e');
@@ -181,6 +221,7 @@ static Future<ProductDetail?> fetchSingleProductDetail({
 
   return null;
 }
+
 ///======================= FETCH PRODUCTS BY IDS FUNCTION =======================
 static Future<List<Productsmodel>> fetchProductsByIds(
   List<int> productIds,
@@ -442,5 +483,114 @@ static Future<List<CategoryModel>> fetchSubCategories(
   }
 
   return [];
+}
+
+static Future<StockCheckResult> checkProductsStock({
+  required List<Map<String, dynamic>> cartItems,
+}) async {
+  if (cartItems.isEmpty) {
+    return const StockCheckResult(
+      hasOutOfStock: false,
+      items: [],
+    );
+  }
+
+  final ids = cartItems
+      .map((e) => e["productId"])
+      .join(",");
+
+  final requestUrl =
+      "${Config.baseUrl}${Config.apiPath}${Config.productsURL}"
+      "?include=$ids&per_page=${cartItems.length}";
+
+  try {
+    final response = await client.get(
+      Uri.parse(requestUrl),
+      headers: getHeaders(),
+    );
+
+    if (response.statusCode != 200) {
+      return const StockCheckResult(
+        hasOutOfStock: false,
+        items: [],
+      );
+    }
+
+    final List products = jsonDecode(response.body);
+
+    final List<OutOfStockItem> outItems = [];
+
+    for (final cartItem in cartItems) {
+      final int productId = cartItem["productId"];
+      final int qty = cartItem["quantity"];
+      final String? docId = cartItem["docId"] as String?;
+
+      final product = products.firstWhere(
+        (e) => e["id"] == productId,
+        orElse: () => null,
+      );
+
+      // Product deleted
+      if (product == null) {
+        outItems.add(
+          OutOfStockItem(
+            docId: docId,
+            productId: productId,
+            name: cartItem["name"] ?? "",
+            reason: "Product no longer exists",
+          ),
+        );
+        continue;
+      }
+
+      final stockStatus =
+          (product["stock_status"] ?? "")
+              .toString()
+              .toLowerCase();
+
+      final bool manageStock =
+          product["manage_stock"] ?? false;
+
+      final int stockQty =
+          product["stock_quantity"] ?? 0;
+
+      // Out of stock
+      if (stockStatus != "instock") {
+        outItems.add(
+          OutOfStockItem(
+            docId: docId,
+            productId: productId,
+            name: product["name"] ?? "",
+            reason: "Out of stock",
+          ),
+        );
+        continue;
+      }
+
+      // Not enough quantity
+      if (manageStock && stockQty < qty) {
+        outItems.add(
+          OutOfStockItem(
+            docId: docId,
+            productId: productId,
+            name: product["name"] ?? "",
+            reason: "Only $stockQty left",
+          ),
+        );
+      }
+    }
+
+    return StockCheckResult(
+      hasOutOfStock: outItems.isNotEmpty,
+      items: outItems,
+    );
+  } catch (e) {
+    debugPrint("Stock check error: $e");
+
+    return const StockCheckResult(
+      hasOutOfStock: false,
+      items: [],
+    );
+  }
 }
 }

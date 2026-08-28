@@ -4,5 +4,10 @@
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:gladskin.in</string>
+		<string>applinks:www.gladskin.in</string>
+	</array>
 </dict>
 </plist>

@@ -1,5 +1,8 @@
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
-import { sendOrderShippedMessage } from "./whatsapp";
+import {
+  sendOrderShippedMessage,
+  sendGiftNotificationMessage,
+} from "./whatsapp";
 
 export const orderShippedWhatsApp = onDocumentUpdated(
   "Orders/{orderId}",
@@ -9,7 +12,7 @@ export const orderShippedWhatsApp = onDocumentUpdated(
 
     if (!before || !after) return;
 
-    // Only trigger when status changes to "shipped"
+    // Only trigger when status changes to shipped
     if (before.status === after.status) return;
     if (after.status !== "shipped") return;
 
@@ -23,27 +26,43 @@ export const orderShippedWhatsApp = onDocumentUpdated(
     }
 
     try {
+      // ==========================================
+      // 📦 Shipping Notification (Always)
+      // ==========================================
       await sendOrderShippedMessage({
         phone,
         customerName: after.customer?.name || "",
         orderNumber:
           after.orderNumber ||
           String(after.wooOrderId || ""),
-
-        // Read from nested tracking object
         courierName:
           after.tracking?.courier || "",
-
         trackingNumber:
           after.tracking?.trackingNumber || "",
       });
 
       console.log(
-        `✅ Shipped WhatsApp sent for order ${event.params.orderId}`
+        `✅ Shipping WhatsApp sent for order ${event.params.orderId}`
       );
+
+      // ==========================================
+      // 🎁 Gift Notification (Only if gift added)
+      // ==========================================
+      if (after.giftAdded === true) {
+        await sendGiftNotificationMessage({
+          phone,
+          orderNumber:
+            after.orderNumber ||
+            String(after.wooOrderId || ""),
+        });
+
+        console.log(
+          `🎁 Gift WhatsApp sent for order ${event.params.orderId}`
+        );
+      }
     } catch (e) {
       console.error(
-        `❌ Failed to send shipped WhatsApp for order ${event.params.orderId}`,
+        `❌ Failed to send WhatsApp for order ${event.params.orderId}`,
         e
       );
     }

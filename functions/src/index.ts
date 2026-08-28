@@ -25,6 +25,8 @@ export {
 export * from "./notificationfunctions";
 export * from "./ordertriggers";
 
+export * from "./stocknotificationfunctions";
+
 
 
 // =======================================================

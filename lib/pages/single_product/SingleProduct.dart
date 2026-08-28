@@ -672,128 +672,145 @@ print("================================");
 
   //========================== PRODUCT DETAILS SECTION =========================
   Widget _productdetails(BuildContext context, ProductDetail p) {
-    // Calculate savings
+  // ============================================================
+  // PRICE
+  // API price is EXCLUSIVE of GST
+  // ============================================================
 
-    final double mrp = p.price;
+  final double mrpExcludingGst = p.price;
 
-    final double salePrice = p.salePrice ?? p.price;
+  final double salePriceExcludingGst =
+      p.salePrice ?? p.price;
 
-    final double savingsPercent = mrp > 0 ? ((mrp - salePrice) / mrp) * 100 : 0;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          const SizedBox(height: 5),
-          Text(
-            p.name,
-            style: GoogleFonts.manrope(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
+  final double taxRate = p.taxRate;
+
+  // GST-inclusive prices
+  final double mrpIncludingGst =
+      mrpExcludingGst +
+      (mrpExcludingGst * taxRate / 100);
+
+  final double salePriceIncludingGst =
+      salePriceExcludingGst +
+      (salePriceExcludingGst * taxRate / 100);
+
+  // Savings should be based on the displayed
+  // GST-inclusive prices.
+  final double savings =
+      mrpIncludingGst - salePriceIncludingGst;
+
+  final double savingsPercent =
+      mrpIncludingGst > 0
+          ? (savings / mrpIncludingGst) * 100
+          : 0;
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 20,
+      vertical: 5,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        const SizedBox(height: 5),
+
+        Text(
+          p.name,
+          style: GoogleFonts.manrope(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
           ),
-          const SizedBox(height: 10),
-          if ((p.shortdescription).trim().isNotEmpty)
-            _shortdescription(context, p)
-          else
-            const SizedBox.shrink(),
-          Text(
-                p.packing.toString(),
-                textAlign: TextAlign.justify,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Colors.blueGrey,
-                  fontSize: 18,
-                ),
+        ),
+
+        const SizedBox(height: 10),
+
+        if (p.shortdescription.trim().isNotEmpty)
+          _shortdescription(context, p)
+        else
+          const SizedBox.shrink(),
+
+        Text(
+          p.packing.toString(),
+          textAlign: TextAlign.justify,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: Colors.blueGrey,
+                fontSize: 18,
               ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        ),
 
-            children: [
-              Text(
-                "₹ ${salePrice.toStringAsFixed(0)}",
+        const SizedBox(height: 10),
 
-                style: GoogleFonts.manrope(
-                  fontSize: 26,
-
-                  fontWeight: FontWeight.w800,
-
-                  color: const Color(0xFF701A80),
-                ),
-              ),
-
-              const SizedBox(width: 10),
-
-              if (salePrice < mrp)
-                Text(
-                  "₹ ${mrp.toStringAsFixed(0)}",
-
-                  style: GoogleFonts.manrope(
-                    fontSize: 20,
-
-                    color: Colors.purple,
-
-                    fontWeight: FontWeight.w500,
-
-                    decoration: TextDecoration.lineThrough,
-                  ),
-                ),
-
-              const SizedBox(width: 12),
-
-              if (salePrice < mrp)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-
-                    vertical: 5,
-                  ),
-
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-
-                    borderRadius: BorderRadius.circular(20),
-
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
-
-                  child: Text(
-                    "${savingsPercent.round()}% OFF",
-
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-
-                      fontWeight: FontWeight.w700,
-
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-
-          if (salePrice < mrp) ...[
-            const SizedBox(height: 6),
-
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
             Text(
-              "You save ₹ ${(mrp - salePrice).toStringAsFixed(0)}",
-
+              "₹ ${salePriceIncludingGst.toStringAsFixed(0)}",
               style: GoogleFonts.manrope(
-                fontSize: 14,
-
-                fontWeight: FontWeight.w600,
-
-                color: Colors.green.shade700,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF701A80),
               ),
             ),
+
+            const SizedBox(width: 10),
+
+            if (salePriceExcludingGst < mrpExcludingGst)
+              Text(
+                "₹ ${mrpIncludingGst.toStringAsFixed(0)}",
+                style: GoogleFonts.manrope(
+                  fontSize: 20,
+                  color: Colors.purple,
+                  fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.lineThrough,
+                ),
+              ),
+
+            const SizedBox(width: 12),
+
+            if (salePriceExcludingGst < mrpExcludingGst)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.green.shade300,
+                  ),
+                ),
+                child: Text(
+                  "${savingsPercent.round()}% OFF",
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ),
           ],
-          const SizedBox(height: 20),
+        ),
+
+        if (salePriceExcludingGst < mrpExcludingGst) ...[
+          const SizedBox(height: 6),
+
+          Text(
+            "You save ₹ ${savings.toStringAsFixed(0)}",
+            style: GoogleFonts.manrope(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.green.shade700,
+            ),
+          ),
         ],
-      ),
-    );
-  }
+
+        const SizedBox(height: 20),
+      ],
+    ),
+  );
+}
 
   //========================== DESCRIPTION SECTION =========================
   Widget _description(BuildContext context, ProductDetail p) {
@@ -1159,11 +1176,27 @@ if (!widget.p.canAddToCart) {
               ? Icons.check_circle
               : Icons.notifications_active,
         ),
-        label: Text(
-          _alreadyRequested
-              ? "WE'LL UPDATE YOU WHEN IT'S AVAILABLE"
-              : "NOTIFY WHEN AVAILABLE",
+label: Column(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    Text(
+      _alreadyRequested
+          ? "WE'LL UPDATE YOU"
+          : "NOTIFY ME",
+      style: const TextStyle(
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+    if (!_alreadyRequested)
+      const Text(
+        "Available in a few days",
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w400,
         ),
+      ),
+  ],
+),
         style: ElevatedButton.styleFrom(
           backgroundColor:
               _alreadyRequested

@@ -20,13 +20,10 @@ class ProductsList extends StatefulWidget {
   });
 
   @override
-  State<ProductsList> createState() =>
-      _ProductsListState();
+  State<ProductsList> createState() => _ProductsListState();
 }
 
-class _ProductsListState
-    extends State<ProductsList> {
-
+class _ProductsListState extends State<ProductsList> {
   // =====================================
   // FALLBACK IMAGE
   // =====================================
@@ -36,36 +33,51 @@ class _ProductsListState
 
   @override
   Widget build(BuildContext context) {
+    // =====================================
+    // BASE PRICES FROM API
+    // =====================================
 
     final double regular =
-        double.tryParse(
-              widget.product
-                      .regularPrice
-                      ?.toString() ??
-                  '',
-            ) ??
-            0;
+        widget.product.regularPrice ?? 0;
 
     final double sale =
-        double.tryParse(
-              widget.product
-                      .salePrice
-                      ?.toString() ??
-                  '',
-            ) ??
-            0;
+        widget.product.salePrice ??
+        regular;
+
+    // =====================================
+    // GST RATE
+    // =====================================
+
+    final double taxRate =
+        widget.product.taxRate;
+
+    // =====================================
+    // GST-INCLUSIVE PRICES
+    // =====================================
+
+    final double regularWithGst =
+        regular * (1 + taxRate / 100);
+
+    final double saleWithGst =
+        sale * (1 + taxRate / 100);
+
+    // =====================================
+    // DISCOUNT
+    // =====================================
 
     final bool hasDiscount =
         sale > 0 &&
-            sale < regular;
+        sale < regular;
 
     final int discountPercent =
-        hasDiscount
-            ? (((regular - sale) /
-                        regular) *
-                    100)
+        hasDiscount && regular > 0
+            ? (((regular - sale) / regular) * 100)
                 .round()
             : 0;
+
+    // =====================================
+    // IMAGE
+    // =====================================
 
     final String imageUrl =
         (widget.imageUrl != null &&
@@ -77,122 +89,103 @@ class _ProductsListState
 
     return Container(
       decoration: BoxDecoration(
-        color:
-            const Color(0xFFF9F9F9),
-
+        color: const Color(0xFFF9F9F9),
         borderRadius:
-            BorderRadius.circular(
-          20,
-        ),
+            BorderRadius.circular(20),
       ),
-
       child: Column(
         crossAxisAlignment:
             CrossAxisAlignment.start,
-
         children: [
-
           // ================= IMAGE =================
 
           Expanded(
             flex: 6,
-
             child: Stack(
               children: [
-
                 Padding(
                   padding:
-                      const EdgeInsets.all(
-                    12,
-                  ),
-
+                      const EdgeInsets.all(12),
                   child: ClipRRect(
                     borderRadius:
-                        BorderRadius.circular(
-                      15,
+                        BorderRadius.circular(15),
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                      width: double.infinity,
+                      height: double.infinity,
+                      memCacheWidth: 600,
+                      maxWidthDiskCache: 1200,
+
+                      placeholder:
+                          (context, url) {
+                        return Container(
+                          color: Colors.grey[100],
+                          child:
+                              const Center(
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        );
+                      },
+
+                      errorWidget:
+                          (context, url, error) {
+                        return CachedNetworkImage(
+                          imageUrl:
+                              fallbackImage,
+                          fit: BoxFit.contain,
+                          errorWidget:
+                              (_, _, _) {
+                            return Container(
+                              color:
+                                  Colors.grey[100],
+                              child:
+                                  const Center(
+                                child: Icon(
+                                  Icons
+                                      .image_not_supported,
+                                  color:
+                                      Colors.grey,
+                                  size: 32,
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
-
-child: CachedNetworkImage(
-  imageUrl: imageUrl,
-
-  fit: BoxFit.contain,
-
-  width: double.infinity,
-  height: double.infinity,
-
-  memCacheWidth: 600,
-  maxWidthDiskCache: 1200,
-
-  placeholder: (context, url) {
-    return Container(
-      color: Colors.grey[100],
-      child: const Center(
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-        ),
-      ),
-    );
-  },
-
-  errorWidget: (context, url, error) {
-    return CachedNetworkImage(
-      imageUrl: fallbackImage,
-      fit: BoxFit.contain,
-
-      errorWidget: (_, _, _) {
-        return Container(
-          color: Colors.grey[100],
-          child: const Center(
-            child: Icon(
-              Icons.image_not_supported,
-              color: Colors.grey,
-              size: 32,
-            ),
-          ),
-        );
-      },
-    );
-  },
-),
                   ),
                 ),
 
-                /// 🔥 DISCOUNT BADGE
+                // ================= DISCOUNT BADGE =================
 
                 if (hasDiscount)
-
                   Positioned(
                     top: 10,
                     left: 10,
-
                     child: Container(
                       padding:
-                          const EdgeInsets.symmetric(
+                          const EdgeInsets
+                              .symmetric(
                         horizontal: 8,
                         vertical: 4,
                       ),
-
                       decoration:
                           BoxDecoration(
-                        color:
-                            Colors.black,
-
+                        color: Colors.black,
                         borderRadius:
-                            BorderRadius.circular(
-                          8,
-                        ),
+                            BorderRadius
+                                .circular(8),
                       ),
-
                       child: Text(
                         "$discountPercent% OFF",
-
                         style:
                             const TextStyle(
-                          color:
-                              Colors.white,
-
+                          color: Colors.white,
                           fontSize: 10,
-
                           fontWeight:
                               FontWeight.bold,
                         ),
@@ -207,7 +200,6 @@ child: CachedNetworkImage(
 
           Expanded(
             flex: 4,
-
             child: Padding(
               padding:
                   const EdgeInsets.fromLTRB(
@@ -216,63 +208,44 @@ child: CachedNetworkImage(
                 16,
                 12,
               ),
-
               child: Column(
                 crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
-
+                    CrossAxisAlignment.start,
                 mainAxisAlignment:
-                    MainAxisAlignment
-                        .spaceEvenly,
-
+                    MainAxisAlignment.spaceEvenly,
                 children: [
-
-                  /// PRODUCT NAME
+                  // ================= PRODUCT NAME =================
 
                   Text(
-                    widget.name
-                        .toUpperCase(),
-
+                    widget.name.toUpperCase(),
                     maxLines: 2,
-
                     overflow:
-                        TextOverflow
-                            .ellipsis,
-
+                        TextOverflow.ellipsis,
                     style:
                         GoogleFonts.inter(
                       fontSize: 12,
-
-                      letterSpacing:
-                          1.1,
-
+                      letterSpacing: 1.1,
                       fontWeight:
                           FontWeight.w600,
-
                       color:
                           Colors.black87,
                     ),
                   ),
 
-                  /// PRICE SECTION
+                  // ================= PRICE =================
 
                   Flexible(
                     child: Row(
                       children: [
-
-                        /// FINAL PRICE
+                        // ================= SALE PRICE =================
 
                         Text(
-                          "₹${(hasDiscount ? sale : sale).toStringAsFixed(0)}",
-
+                          "₹${saleWithGst.toStringAsFixed(0)}",
                           style:
                               GoogleFonts.inter(
                             fontSize: 16,
-
                             fontWeight:
                                 FontWeight.w700,
-
                             color:
                                 Colors.black,
                           ),
@@ -282,26 +255,23 @@ child: CachedNetworkImage(
                           width: 6,
                         ),
 
-                        /// REGULAR PRICE
+                        // ================= MRP =================
 
-                        if (regular > 0)
-
+                        if (regular > 0 &&
+                            regularWithGst >
+                                saleWithGst)
                           Flexible(
                             child: Text(
-                              "₹${regular.toStringAsFixed(0)}",
-
+                              "₹${regularWithGst.toStringAsFixed(0)}",
                               style:
                                   GoogleFonts.inter(
                                 fontSize: 14,
-
                                 color:
                                     Colors.grey,
-
                                 decoration:
                                     TextDecoration
                                         .lineThrough,
                               ),
-
                               overflow:
                                   TextOverflow
                                       .ellipsis,
